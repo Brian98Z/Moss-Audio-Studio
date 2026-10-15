@@ -67,7 +67,7 @@ curl -o 对话.wav -X POST http://127.0.0.1:17980/api/gen/ttsd -H "Content-Type:
 
 其它相关环境变量：`MOSS_HOST`、`MOSS_PORT`（服务端）；`MOSS_TTS_PYTHON`（环境准备模块发现基础解释器时使用）与 `MOSS_WORKBENCH_ROOT`（客户端选择工作台根目录）。打包态默认根目录为 `<resourcesPath>/workbench`，开发态 Windows 默认 checkout `D:\MossTTSD`；下载内容固定落在工作台根目录，只有测试用环境变量 `MOSS_DOWNLOAD_ROOT` 能覆盖。
 后端解释器与基础解释器发现是两件事：`server/run.py` 只接受 `<workbench>/runtime/venv/Scripts/python.exe`（Windows）或对应平台的 `bin/python3`，且必须是实际运行进程的同一路径；缺失 venv 返回退出码 3，使用其它解释器或 venv 依赖预检失败返回 4。没有后端 PATH 回退。PATH 探测只在 `tools/env_setup.py` 的环境准备阶段使用；`MOSS_TTS_PYTHON` 不会覆盖后端解释器。
-安装包包含 `server/`、`tools/`、`docs/`、`runtime/requirements.txt`、`runtime/pylibs/`、`python/`（便携 CPython 3.12）与 `assets/`；不包含 `models/`、`runtime/venv/`、`runtime/ffmpeg/`、`outputs/`、`uploads/`。首次启动需在「环境准备」中安装依赖（约 3.4 GB），再在「设置 → 模型下载」下载模型；必需模型约 61.8 GB，FFmpeg 约 83 MB。
+安装包包含 `server/`、`tools/`、`docs/`、`runtime/requirements.txt`、`runtime/pylibs/`、`python/`（便携 CPython 3.12）与 `assets/`；不包含 `models/`、`runtime/venv/`、`runtime/ffmpeg/`、`outputs/`、`uploads/`。首次启动需在「环境准备」中安装依赖（约 3.4 GB），再在「设置 → 环境准备」下载模型；必需模型约 61.8 GB，FFmpeg 约 83 MB。
 `GET /api/state` 的 `env` 对象包含 `ready`、`interpreter`、`torch`、`cuda`、`cudnn`、`system_cudnn_conflict`、`missing`。`MOSS_ENV_READY`、`MOSS_ENV_INTERPRETER`、`MOSS_ENV_TORCH`、`MOSS_ENV_CUDA`、`MOSS_ENV_CUDNN`、`MOSS_ENV_SYSTEM_CUDNN_CONFLICT`、`MOSS_ENV_MISSING` 是 `server/run.py` 与应用之间的内部握手字段，不是用户配置开关，勿手动设置。
 
 独立环境准备界面（`python tools/downloader_ui.py`）的接口为 `GET /api/env/status`、`GET /api/env/log`、`POST /api/env/start`、`POST /api/env/cancel`；它们属于独立 UI 服务，不是工作台 FastAPI 后端路由。

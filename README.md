@@ -1,6 +1,6 @@
 # MOSS Voice Workbench
 
-**English** | [中文](README.zh-CN.md)
+**English** | [Simplified Chinese](README.zh-CN.md)
 
 A fully offline voice & audio workbench around the MOSS speech models, with a desktop client and a built-in
 web UI: voice cloning / single-speaker TTS, voice design, sound effects, multi-speaker dialogue, plus two
@@ -21,7 +21,7 @@ Detailed reference docs (Chinese): [`docs/API.md`](docs/API.md) · [`docs/CONFIG
 
 ```
 <workbench-root>\ (development checkout or installed resources/workbench)
-├─ client\           Electron client + portable Python; launcher: MOSS语音工作台-启动器.exe
+├─ client\           Electron client + portable Python; launcher: MOSS语音工作台-启动器.exe (MOSS Voice Workbench Launcher)
 ├─ runtime\          dependencies only — the venv is created on the target machine, never shipped
 │   ├─ requirements.txt   every pip dependency, pinned (torch 2.10.0+cu130, transformers 5.19, …)
 │   ├─ pylibs\       only the vendored `mossformer2_se` (no PyPI package); put first on sys.path
@@ -61,11 +61,11 @@ The development root is the checkout (default `D:\MossTTSD`). For an installed a
 
 Downloads are placed under the workbench root. `MOSS_DOWNLOAD_ROOT` is only a test override; normal downloads use the fixed workbench root.
 
-First time here? **[Quick Start](docs/QUICKSTART.md)** is a one-page walkthrough: what the app does, the two setup steps with expected sizes and times, FAQ (slow downloads, exit codes 3/4, offline use, uninstall/move), and a directory reference. A [简体中文版](docs/QUICKSTART.zh-CN.md) is included too.
+First time here? **[Quick Start](docs/QUICKSTART.md)** is a one-page walkthrough: what the app does, the two setup steps with expected sizes and times, FAQ (slow downloads, exit codes 3/4, offline use, uninstall/move), and a directory reference. A [Simplified Chinese version](docs/QUICKSTART.zh-CN.md) is included too.
 
 ### Run
 
-1. **Desktop client (recommended)** — double-click `client\MOSS语音工作台-启动器.exe`. It starts exactly one
+1. **Desktop client (recommended)** — double-click `client\MOSS语音工作台-启动器.exe` (MOSS Voice Workbench Launcher). It starts exactly one
    backend (`server\run.py`) and opens the workbench window.
 2. **Backend only** — run `start_server.bat`, then open <http://127.0.0.1:17980>.
    `MOSS_HOST` / `MOSS_PORT` override the host and port. `MOSS_WORKBENCH_ROOT` selects the workbench root.
@@ -80,10 +80,10 @@ themes and an accent colour.
 
 | Feature | Where | Route | Notes |
 |---|---|---|---|
-| Voice cloning / single-speaker TTS | 单人配音 tab | `GET`/`POST` `/api/gen/tts` | 3–10 s reference audio (or a built-in voice); 31 languages, mixed zh/en, `[pause 1.5s]` |
-| Voice design | 音色设计 tab | `GET`/`POST` `/api/gen/vg` | Free-text description of the voice; no reference audio needed |
-| Sound effects | 音效生成 tab | `GET`/`POST` `/api/gen/sfx` | Describe ambience / Foley + target seconds (≈12.5 audio tokens per second) |
-| Multi-speaker dialogue | 对话配音 tab | `POST` `/api/gen/ttsd` | `[S1]` / `[S2]` script + a reference clip and transcript per speaker |
+| Voice cloning / single-speaker TTS | Single speaker tab | `GET`/`POST` `/api/gen/tts` | 3–10 s reference audio (or a built-in voice); 31 languages, mixed zh/en, `[pause 1.5s]` |
+| Voice design | Voice design tab | `GET`/`POST` `/api/gen/vg` | Free-text description of the voice; no reference audio needed |
+| Sound effects | Sound FX tab | `GET`/`POST` `/api/gen/sfx` | Describe ambience / Foley + target seconds (≈12.5 audio tokens per second) |
+| Multi-speaker dialogue | Dialogue tab | `POST` `/api/gen/ttsd` | `[S1]` / `[S2]` script + a reference clip and transcript per speaker |
 | Stem separation | Tools → Stems | `POST` `/api/stems/separate` | Six stems, or vocals / instrumental only (`mode`) |
 | Vocal denoising | Tools → Denoise | `POST /api/denoise/apply` | 0–100 % strength (dry/wet mix); keeps the input sample rate and channel layout |
 
@@ -94,7 +94,7 @@ separation unloads the loaded speech model first, denoising does not (its footpr
 
 1. Open the workbench and load a model. Available quantization depends on deployed weights: checkpoint-only deployments enable int8; a full-precision master enables int8, float8, and none. The first load takes roughly 20–40 s; loading another model unloads the previous one.
 2. Pick a tab, fill in the inputs and generate. Speech-generation files are written directly under `outputs/<scene>/`; only Stems and Denoise create per-job subdirectories (`outputs/Stems/<job_id>/` and `outputs/Denoise/<job_id>/`). Results can be played, downloaded, deleted, or reused as reference audio.
-3. Reference audio may be a built-in voice, an uploaded file or a recording. The dialogue tab has a **识别逐字稿 / Transcribe** button that fills in the transcript with a local Whisper model (CPU, offline).
+3. Reference audio may be a built-in voice, an uploaded file or a recording. The dialogue tab has a **Transcribe** button that fills in the transcript with a local Whisper model (CPU, offline).
 
 Sampling defaults follow the official recipes — tts `1.7 / 0.8 / 25 / 1.0`, vg `1.5 / 0.6 / 50 / 1.1`,
 ttsd `1.1 / 0.9 / 50 / 1.1`, sfx `1.5 / 0.6 / 50 / 1.2`. Length hints: sound effects ≤ 60 s,
@@ -105,7 +105,7 @@ dialogue ≤ 3 minutes per job; longer output needs `tokenizer_device: "cpu"` in
 Everything is documented in [`docs/API.md`](docs/API.md) with curl / Python / JS examples. The quickest path
 is the synchronous `GET /api/gen/*` links, which return WAV bytes directly (metadata in `X-Output-*`
 headers); `wait=0` returns a job id to poll instead. Non-ASCII query values must be percent-encoded — let
-your HTTP client do it, or use `curl -G --data-urlencode "text=你好"`. `GET /api/gen` lists the endpoints,
+your HTTP client do it, or use `curl -G --data-urlencode "text=hello"`. `GET /api/gen` lists the endpoints,
 Swagger is at `/docs`, CORS is open, and an optional `api_token` can require a token.
 
 ## Models & weights
@@ -125,17 +125,19 @@ Quantization depends on deployed weights. A checkpoint-only deployment exposes i
 
 ### Unified downloader (GUI)
 
-The same assets are also available from the workbench — **设置 → 模型下载 / Settings → Model downloads** (the `/downloads` page embedded in the
-workbench shell; also openable directly at `/downloads`, or via `tools\downloader_ui.py`, stdlib-only, default
-port 17990) — and from the launcher after
-the environment step. It downloads into a **fixed location inside the install directory** (shown in the UI,
+The same assets are also available inside the workbench, in one embedded tab: **Settings → Environment setup** is the
+standalone `tools\downloader_ui.py` page (stdlib-only, default port 17990) shown in the shell — section ① prepares the
+environment (`runtime\venv` + `runtime\requirements.txt`, ≈3.4 GB, mirror chosen automatically) and section ② downloads
+the model weights and the optional resources. The shell starts the helper on demand with `--no-browser`, so no external
+window is involved, and a machine whose environment is already complete reports it right there. The same page also opens
+standalone at `http://127.0.0.1:17990/` (or as `/downloads` on the workbench port). It downloads into a **fixed location inside the install directory** (shown in the UI,
 not configurable) and verifies what it writes: per-file `sha256` from ModelScope, the published `sha256` of
 the ffmpeg zip, and the upstream 8-hex prefix for the demucs `.th`. Items already in place show a
 **ready · verified** badge; a "verify" action re-hashes anything you want re-checked. Sizes are labelled so that
 a locally present artifact never reads as a contradiction: the card header prints the **download package**
-(`下载包 78.96 MB`) and a settled row prints what is actually on disk (`本机 253.24 MB` — e.g. a full ffmpeg
+(`package 78.96 MB`) and a settled row prints what is actually on disk (`Local 253.24 MB` — e.g. a full ffmpeg
 build already in `runtime\ffmpeg`). A model usable from locally present weights (shared codec, existing int8
-artifacts) reads `已就绪（本机已有可用权重）` instead of reporting a byte count for an empty folder, and a
+artifacts) reads `Ready (usable local weights present)` instead of reporting a byte count for an empty folder, and a
 settled row never keeps a stale partial-download progress bar.
 
 | Item | Group | Size |
@@ -187,14 +189,15 @@ re-applied whenever that asar is rebuilt. Both scripts extract, patch the single
 
 ```bash
 node integration/enable_english_ui.js           client/resources/app.asar            # writes app.asar.new: persisted English UI + translations
-node integration/downloads_in_settings_patch.js client/resources/app.asar --apply    # Settings → 通用设置 / 模型下载 tabs (backs the asar up first)
+node integration/downloads_in_settings_patch.js client/resources/app.asar --apply    # Settings → General settings / Environment setup tabs (backs the asar up first)
 ```
 
 Both are idempotent: re-running replaces the previously injected block instead of stacking a second one.
 `downloads_in_settings_patch.js` appends a self-contained DOM enhancer to the renderer bundle, so the
-Settings page keeps working even if the enhancer cannot attach; the 模型下载 tab embeds the backend's
-`/downloads` page, refits its height to the available space, and reloads it on every switch (so a backend
-restart heals a previously failed load).
+Settings page keeps working even if the enhancer cannot attach; the Environment setup tab embeds the standalone
+`tools/downloader_ui.py` page (port 17990), which contains both the environment section and the model download
+section, refits its height to the available space, and retries the load until the page reports ready (so clicking
+the tab before the helper has started still ends up showing the page rather than a blank frame).
 
 The macOS workflow is not proof of a usable macOS workbench; its prerequisite runtime assets have not been prepared. See `.github/workflows/build-macos.yml`.
 

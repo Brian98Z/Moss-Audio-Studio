@@ -83,10 +83,59 @@ class EnvironmentSetup:
         self.process = None
         self.thread = None
         self.cancel_requested = False
+        self._detect_installed()
 
     @property
     def venv_python(self) -> Path:
         return self.root / "runtime" / "venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python3")
+
+    def _detect_installed(self) -> None:
+        """本机已装好依赖时直接进入 ready —— 否则界面只能显示「未准备」，用户看不出「本机已完成」。
+
+        只查文件（venv 解释器 + torch/transformers 落盘位置），不 import torch：
+        那要几秒到几十秒，会卡住 HTTP 线程。
+        """
+        venv_python = self.venv_python
+        if not venv_python.is_file():
+            return
+        venv_root = venv_python.parent.parent
+        sites = ([venv_root / "Lib" / "site-packages"] if os.name == "nt"
+                 else sorted((venv_root / "lib").glob("python*/site-packages")))
+        site = next((p for p in sites if (p / "torch" / "version.py").is_file()), None)
+        if site is None or not (site / "transformers" / "__init__.py").is_file():
+            return
+        torch_version = None
+        try:
+            for line in (site / "torch" / "version.py").read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.startswith("__version__"):
+                    torch_version = line.split("=", 1)[1].strip().strip("'\"")
+                    break
+        except OSError:
+            pass
+        self.dependencies_complete = True
+        self.torch_version = torch_version
+        self.state = "ready"
+        self.logs.append(f"检测到本机已有可用环境（torch {torch_version or '未知'}），无需重新安装")
+        threading.Thread(target=self._probe_runtime, daemon=True).start()
+
+    def _probe_runtime(self) -> None:
+        """真实探测 torch/CUDA —— 放线程里做：import torch 要几秒到几十秒，会卡住 HTTP 线程。
+
+        不探测就只能显示 torch 版本号；探测失败保持 None（界面不显示 CUDA 那一段，不谎报不可用）。
+        """
+        try:
+            proc = subprocess.run(
+                [str(self.venv_python), "-c",
+                 "import torch;print(torch.__version__, torch.cuda.is_available())"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return
+        parts = (proc.stdout or "").split()
+        if proc.returncode == 0 and len(parts) >= 2:
+            with self.lock:
+                self.torch_version = parts[0]
+                self.cuda_available = parts[1].lower() == "true"
 
     def status(self) -> dict:
         with self.lock:
@@ -108,7 +157,7 @@ class EnvironmentSetup:
 
     def start(self, mirror: str | None = None, force: bool = False) -> dict:
         with self.lock:
-            if self.state not in ("idle", "error", "canceled"):
+            if self.state not in ("idle", "error", "canceled", "ready"):
                 return {"started": False, "state": self.state, "error": "环境准备正在运行"}
             if not self.python:
                 self.error = "未找到符合要求的 Python 3.12 x64 解释器"

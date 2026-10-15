@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import socket
 import sys
 import threading
 import webbrowser
@@ -53,9 +54,9 @@ MIME = {
     ".woff": "font/woff",
     ".woff2": "font/woff2",
 }
-_ENV_PANEL = '''<section id="envPanel" class="page downloads-page"><header class="hero"><h1>① 环境准备</h1><p>首次使用需准备运行环境（约 3.4 GB 依赖 + 模型按需下载）</p></header><div class="panel"><p>Python 解释器：<code id="envPython">检测中…</code></p><label>软件源：<select id="envMirror"><option value="auto">自动切换（清华→阿里云→PyPI）</option><option value="tsinghua">清华 PyPI 镜像</option><option value="pypi">PyPI 官方源</option><option value="aliyun">阿里云镜像</option></select></label><div class="download-actions"><button id="envStart">开始准备环境</button><button id="envCancel">取消</button><button id="envRetry">换源重试</button></div><progress id="envProgress" max="100" value="0"></progress><span id="envProgressText"></span><pre id="envLog" style="max-height:14em;overflow:auto;white-space:pre-wrap"></pre></div></section>'''.encode('utf-8')
+_ENV_PANEL = '''<style>#envPanel{padding-bottom:0}#envPanel + .page{padding-top:0}</style><section id="envPanel" class="page downloads-page"><header class="hero"><h1>① 环境准备</h1><p>首次使用需准备运行环境（约 3.4 GB 依赖 + 模型按需下载）</p></header><div class="panel"><p>Python 解释器：<code id="envPython">检测中…</code></p><label>软件源：<select id="envMirror"><option value="auto">自动切换（清华→阿里云→PyPI）</option><option value="tsinghua">清华 PyPI 镜像</option><option value="pypi">PyPI 官方源</option><option value="aliyun">阿里云镜像</option></select></label><div class="download-actions"><button id="envStart">一键安装环境依赖</button><button id="envCancel">取消</button><button id="envRetry">换源重试</button></div><progress id="envProgress" max="100" value="0"></progress><span id="envProgressText"></span><pre id="envLog" style="max-height:14em;overflow:auto;white-space:pre-wrap"></pre></div></section>'''.encode('utf-8')
 
-_ENV_SCRIPT = '''<script>(function(){const $=id=>document.getElementById(id);async function call(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return r.json()}async function refresh(){try{const s=await call('/api/env/status');$('envPython').textContent=s.interpreter||'未找到 Python 3.12 x64';$('envProgress').value=s.percent||0;$('envProgressText').textContent='已下载 '+(s.downloaded_gb||0)+' GB / ≈3.4 GB · '+s.percent+'%';const l=await call('/api/env/log');$('envLog').textContent=l.lines.join('\\n');$('envLog').scrollTop=$('envLog').scrollHeight;if(s.state==='ready'){$('envPanel').innerHTML='<section class="panel"><h2>① 环境准备</h2><p>torch '+s.torch_version+' / CUDA '+(s.cuda_available?'可用':'不可用')+'</p></section>'}}catch(e){}setTimeout(refresh,1200)}$('envStart').onclick=()=>call('/api/env/start',{mirror:$('envMirror').value});$('envCancel').onclick=()=>call('/api/env/cancel',{});$('envRetry').onclick=()=>call('/api/env/start',{mirror:$('envMirror').value,retry:true});refresh()})();</script>'''.encode('utf-8')
+_ENV_SCRIPT = '''<script>(function(){try{parent.postMessage({type:'moss-env-ready'},'*')}catch(e){}const $=id=>document.getElementById(id);async function call(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});return r.json()}async function refresh(){try{const s=await call('/api/env/status');$('envPython').textContent=s.interpreter||'未找到 Python 3.12 x64';$('envProgress').value=s.percent||0;$('envProgressText').textContent='已下载 '+(s.downloaded_gb||0)+' GB / ≈3.4 GB · '+s.percent+'%';const l=await call('/api/env/log');$('envLog').textContent=l.lines.join('\\n');$('envLog').scrollTop=$('envLog').scrollHeight;if(s.state==='ready'){$('envPanel').innerHTML='<section class="panel"><h2>① 环境准备</h2><p><strong>✓ 本机环境已完成</strong>：依赖已就绪，无需重新安装。</p><p style="opacity:.75">torch '+(s.torch_version||'—')+(s.cuda_available==null?'':' / CUDA '+(s.cuda_available?'可用':'不可用'))+'</p><button type="button" id="envRebuild">重新安装</button></section>';var rb=$('envRebuild');if(rb){rb.onclick=()=>call('/api/env/start',{mirror:'auto',retry:true})}}}catch(e){}setTimeout(refresh,1200)}$('envStart').onclick=()=>call('/api/env/start',{mirror:$('envMirror').value});$('envCancel').onclick=()=>call('/api/env/cancel',{});$('envRetry').onclick=()=>call('/api/env/start',{mirror:$('envMirror').value,retry:true});refresh()})();</script>'''.encode('utf-8')
 
 
 def load_engine():
@@ -194,6 +195,34 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"error": f"unknown endpoint: {path}"}, 404)
 
 
+def probe_health(host: str, port: int, timeout: float = 0.8) -> bool:
+    """已有同款服务在跑就不再起第二个。
+
+    Windows 下 SO_REUSEADDR 允许多个进程同时绑同一端口，重复触发（页签重开、首启弹窗 + 页签）
+    会留下多个实例、请求落到哪个不确定；这里先探活，命中就用现有的。
+    """
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as sock:
+            sock.sendall(b"GET /api/env/status HTTP/1.0\r\n\r\n")
+            data = b""
+            while len(data) < 8192:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                data += chunk
+                if b'"state"' in data:
+                    return True
+            return False
+    except OSError:
+        return False
+
+
+class _Server(ThreadingHTTPServer):
+    # 不要 SO_REUSEADDR：宁可让第二个实例绑失败、由端口扫描换端口，也不要两个进程抢同一端口。
+    allow_reuse_address = False
+    daemon_threads = True
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="独立下载器界面（仅 stdlib）")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
@@ -212,11 +241,17 @@ def main() -> int:
         print(f"[downloader] 期望文件：{SERVER_DIR / 'downloads.py'}", file=sys.stderr, flush=True)
         return 2
 
+    if probe_health(args.host, args.port):
+        print(json.dumps({"downloader_port": args.port,
+                          "downloader_url": f"http://{args.host}:{args.port}/",
+                          "already_running": True}), flush=True)
+        return 0
+
     httpd = None
     last_err: Exception | None = None
     for port in range(args.port, args.port + PORT_SCAN):
         try:
-            httpd = ThreadingHTTPServer((args.host, port), Handler)
+            httpd = _Server((args.host, port), Handler)
             break
         except OSError as exc:
             last_err = exc

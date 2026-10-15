@@ -5,6 +5,8 @@
 .download-card { border: 1px solid var(--border, #8885); border-radius: 10px; padding: 14px; }
 .download-card.preselected { outline: 2px solid var(--accent, #4b91d1); }
 .download-card header, .download-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+/* 「校对/重试」跟徽标同一行、靠右：左侧只放标识与体积，避免左挤右空。 */
+.download-row-actions { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; }
 .download-card progress { width: 100%; height: 12px; }
 /* 文件大小 + 存储路径同行：路径跟在大小后面、靠右，过长省略（完整值在 title 里） */
 .download-card header .download-figures { display: flex; align-items: center; gap: 10px; min-width: 0; margin-left: auto; }

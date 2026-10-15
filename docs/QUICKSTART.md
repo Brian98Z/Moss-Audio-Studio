@@ -21,7 +21,7 @@ After setup, generation can run offline.
 
 1. **Install** — Install and launch MOSS Voice Workbench. On first launch, it will prompt you to prepare the environment.
 2. **Prepare the environment** — In **Environment Setup**, install the dependencies using the bundled Python. This downloads about **3.4 GB**. PyTorch is about **2.7 GB** and took about **15 minutes** on the tested connection; actual time depends on your network. The default package-source fallback is Tsinghua → Alibaba Cloud → official PyPI; PyTorch uses `--extra-index-url https://download.pytorch.org/whl/cu130`.
-3. **Download models** — Open **Settings → Model downloads** and download the required models (about **61.8 GB**) and FFmpeg (about **83 MB**). Demucs, Whisper Small, and MossFormer2 SE are optional resources you can download as needed. Downloads are stored under the workbench installation directory.
+3. **Download models** — Open **Settings → Environment setup** and download the required models (about **61.8 GB**) and FFmpeg (about **83 MB**). Demucs, Whisper Small, and MossFormer2 SE are optional resources you can download as needed. Downloads are stored under the workbench installation directory.
 4. **Start using it** — Open the workbench and choose a generation mode or audio tool. Allow the model to load when prompted. TTS/voice-generation outputs go directly under `outputs/<scene>/`; only Stems and Denoise use per-job directories: `outputs/Stems/<job_id>/` and `outputs/Denoise/<job_id>/`. Uploaded audio is stored under `uploads/`.
 
 ### Run from source
@@ -37,7 +37,7 @@ Environment setup downloads several gigabytes, and progress may not move steadil
 Exit code **3** means the expected `runtime/venv` interpreter is missing. Exit code **4** means the backend was started by a different interpreter path, or the venv interpreter failed the `torch`/`torchaudio` preflight. Start the backend through the matching venv Python; rerun Environment Setup if the venv dependencies are incomplete. `MOSS_TTS_PYTHON` is only used to discover a base interpreter during environment preparation; it does not override the backend interpreter.
 
 **Can I resume an interrupted download?**
-Yes. Start the same item again in Settings → Model downloads; partial downloads are retained and resumed.
+Yes. Start the same item again in Settings → Environment setup; partial downloads are retained and resumed.
 
 **Do I need an NVIDIA GPU?**
 No. The app can run on CPU, but generation will be slower. For GPU acceleration, a CUDA 13-capable NVIDIA driver is a system prerequisite.
@@ -71,6 +71,6 @@ Uninstall it using the operating system's normal app-uninstall method. To move i
 
 ## More docs
 
-- [简体中文快速上手](QUICKSTART.zh-CN.md)
+- [Quick Start in Simplified Chinese](QUICKSTART.zh-CN.md)
 - [Configuration and directory details](CONFIG.md)
 - [Local API reference](API.md)

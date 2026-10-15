@@ -70,7 +70,7 @@
         const activity = item.present && !busy
           ? (item.error ? `<div class="download-meta"><span class="error">${esc(item.error)}</span></div>` : '')
           : `<progress max="100" value="${fraction}"></progress><div class="download-meta"><span>${bytes(item.done_bytes || 0)} / ${bytes(item.bytes)}</span><span class="error">${esc(item.error || '')}</span></div>`;
-        card.innerHTML = `<header><label><input type="checkbox" data-select="${esc(item.id)}" ${selected.has(item.id) ? 'checked' : ''} ${item.present ? 'disabled' : ''}><strong>${esc(label)}</strong></label><span class="download-figures"><span>${esc(t('downloadsPackageSize', { size: bytes(item.bytes) }))}</span>${targetDisplay(item.target, window.downloadRoot)}</span></header><p class="download-notes">${esc(item.notes || '')}</p><div class="download-meta"><span>${badge}${presentLine}</span><span>${esc(speedEta)}</span></div>${activity}${actions}`;
+        card.innerHTML = `<header><label><input type="checkbox" data-select="${esc(item.id)}" ${selected.has(item.id) ? 'checked' : ''} ${item.present ? 'disabled' : ''}><strong>${esc(label)}</strong></label><span class="download-figures"><span>${esc(t('downloadsPackageSize', { size: bytes(item.bytes) }))}</span>${targetDisplay(item.target, window.downloadRoot)}</span></header><p class="download-notes">${esc(item.notes || '')}</p><div class="download-meta"><span>${badge}${presentLine}</span><span class="download-row-actions">${esc(speedEta)}${actions}</span></div>${activity}`;
         host.appendChild(card);
       });
     }

@@ -41,12 +41,16 @@ const ENHANCER = `
 (function () {
   var BAR = 'data-moss-settings-tabs';
   var PANEL = 'data-moss-settings-tabs-panel';
-  var PORTS = [17980, 17990];   // backend default, then the standalone downloader UI
+  var ENV_URL = 'http://127.0.0.1:17990/';   // 独立「环境准备 / 下载」界面
+  var envStarted = false;
+  var envPoll = null;
+  var envFrame = null;
 
   function labels() {
     var head = (document.body && document.body.innerText || '').slice(0, 3000);
     var zh = /设置|首页|关于|外观/.test(head);
-    return zh ? ['通用设置', '模型下载'] : ['General', 'Model downloads'];
+    // 环境准备与模型下载是同一个页面（17990 = downloads.html + 环境准备段），只留一个页签。
+    return zh ? ['通用设置', '环境准备'] : ['General', 'Environment setup'];
   }
 
   // 外壳当前明暗：读宿主自身的底色亮度，用于给嵌套 iframe 兜底主题（外层广播到不了它）。
@@ -70,20 +74,13 @@ const ENHANCER = `
     if (data.type === 'moss-theme-request' && event.source) {
       try { event.source.postMessage({ type: 'moss-theme', mode: shellMode(), primary: '' }, '*'); } catch (e) {}
     }
-  });
-
-  function pickBase() {
-    // Probe the known ports; fall back to the backend default.
-    var i = 0;
-    function tryNext() {
-      if (i >= PORTS.length) return Promise.resolve('http://127.0.0.1:' + PORTS[0]);
-      var base = 'http://127.0.0.1:' + PORTS[i++];
-      return fetch(base + '/api/health', { cache: 'no-store' })
-        .then(function (r) { return r.ok ? base : tryNext(); })
-        .catch(tryNext);
+    if (data.type === 'moss-env-ready') {
+      // 17990 页面加载完成。跨源 fetch 会被 CORS 挡掉，不能拿它当就绪判据，只能等页面主动上报。
+      clearInterval(envPoll);
+      envPoll = null;
+      if (envFrame) envFrame.setAttribute('data-ready', '1');
     }
-    return tryNext();
-  }
+  });
 
   function findRoot() {
     var divs = document.querySelectorAll('div[style*="padding: 50px"],div[style*="padding:50px"]');
@@ -98,12 +95,12 @@ const ENHANCER = `
     var bar = document.createElement('div');
     bar.setAttribute(BAR, '1');
     bar.style.cssText = 'display:flex;gap:6px;margin:0 0 16px 0;padding-bottom:10px;border-bottom:1px solid rgba(128,128,128,.22)';
-    var panel = document.createElement('div');
-    panel.setAttribute(PANEL, '1');
-    panel.style.cssText = 'display:none';
-    var frame = document.createElement('iframe');
-    frame.style.cssText = 'width:100%;height:100%;border:0;background:transparent';
-    panel.appendChild(frame);
+    var envPanel = document.createElement('div');
+    envPanel.setAttribute(PANEL, '1');
+    envPanel.style.cssText = 'display:none';
+    envFrame = document.createElement('iframe');
+    envFrame.style.cssText = 'width:100%;height:100%;border:0;background:transparent';
+    envPanel.appendChild(envFrame);
     var active = 0;
     var texts = labels();
     var buttons = [];
@@ -117,19 +114,29 @@ const ENHANCER = `
       var kids = root.children;
       for (var j = 0; j < kids.length; j++) {
         var el = kids[j];
-        if (el === bar || el === panel) continue;
+        if (el === bar || el === envPanel) continue;
         el.style.display = active === 0 ? '' : 'none';
       }
-      panel.style.display = active === 1 ? '' : 'none';
+      envPanel.style.display = active === 1 ? '' : 'none';
       if (active === 1) {
-        try { fit(); } catch (e) {}   // 撑满页签下方空间，且不把外层容器顶出滚动条
-        pickBase().then(function (base) {
-          var url = base + '/downloads';
-          // 每次切回该页签都重新加载一次：上一次加载失败（例如后端还没起）时也能自愈。
-          var same = frame.getAttribute('src') === url;
-          if (same) frame.removeAttribute('src');
-          setTimeout(function () { frame.setAttribute('src', url); }, same ? 30 : 0);
-        });
+        // 「环境准备」：首次点开时拉起独立的 17990 界面（--no-browser，不开外部窗口）。
+        // 服务还没起来时 iframe 是空的：按 3s 重载重试（连接被拒是瞬时的，代价可忽略），
+        // 页面加载成功会 postMessage('moss-env-ready')，由上面的监听器停止重试。
+        if (!envStarted) {
+          envStarted = true;
+          try { if (window.api && window.api.openEnvSetup) window.api.openEnvSetup(); } catch (e) {}
+        }
+        if (envFrame.getAttribute('data-ready') === '1') {
+          clearInterval(envPoll);
+          envPoll = null;
+        } else if (!envPoll) {
+          envFrame.setAttribute('src', ENV_URL);
+          envPoll = setInterval(function () {
+            envFrame.removeAttribute('src');
+            setTimeout(function () { envFrame.setAttribute('src', ENV_URL); }, 20);
+          }, 3000);
+        }
+        try { fit(); } catch (e) {}
       }
     }
 
@@ -145,7 +152,7 @@ const ENHANCER = `
       })(k);
     }
     root.insertBefore(bar, root.firstChild);
-    root.appendChild(panel);
+    root.appendChild(envPanel);
     apply();
   }
 
@@ -171,13 +178,16 @@ const ENHANCER = `
   }
 
   function fit() {
-    var host = document.querySelector('[' + PANEL + ']');
-    if (!host || host.style.display === 'none') return;
-    var parent = host.parentElement;
-    var padBottom = parent ? (parseFloat(getComputedStyle(parent).paddingBottom) || 0) : 0;
+    var hosts = document.querySelectorAll('[' + PANEL + ']');
     var viewport = document.documentElement.clientHeight;   // 视口内高（已扣掉滚动条）
-    var top = host.getBoundingClientRect().top;
-    host.style.height = Math.max(240, Math.round(viewport - top - padBottom - 6)) + 'px';
+    for (var n = 0; n < hosts.length; n++) {
+      var host = hosts[n];
+      if (!host || host.style.display === 'none') continue;
+      var parent = host.parentElement;
+      var padBottom = parent ? (parseFloat(getComputedStyle(parent).paddingBottom) || 0) : 0;
+      var top = host.getBoundingClientRect().top;
+      host.style.height = Math.max(240, Math.round(viewport - top - padBottom - 6)) + 'px';
+    }
   }
 
   function ensureStyle() {
@@ -230,6 +240,87 @@ if (check.status !== 0) {
   throw new Error('node --check failed on the patched bundle; asar NOT written');
 }
 console.log('[settings-tabs] node --check passed');
+
+// ---------------------------------------------------------------------------
+// Client wiring: let the settings UI start the standalone environment/download UI
+// (tools/downloader_ui.py on port 17990). Anchored, exactly-once substitutions, gated by
+// `node --check` — same discipline as the packaging retrofit.
+// 带 BEGIN/END 哨兵：重复执行时先摘掉旧块再按锚点重新插入，
+// 否则改了补丁内容也会因为「已打过」而被跳过（踩过一次）。
+function patchOnce(filePath, anchor, body, label) {
+  const BEGIN = `/* [moss:${label}] begin */`;
+  const END = `/* [moss:${label}] end */`;
+  let text = fs.readFileSync(filePath, 'utf8');
+  // 兼容早期实现：那版插在「启动后端」路径里、没有哨兵，按已知边界整段摘除
+  const legacyStart = text.indexOf('// [moss] 环境准备入口');
+  if (legacyStart >= 0) {
+    const legacyEnd = text.indexOf('console.log("backend:"', legacyStart);
+    if (legacyEnd > legacyStart) text = text.slice(0, legacyStart) + text.slice(legacyEnd);
+  }
+  const re = new RegExp(`${BEGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n?`, 'g');
+  const had = re.test(text);
+  text = text.replace(re, '');
+  const hits = text.split(anchor).length - 1;
+  if (hits !== 1) throw new Error(`${label}: anchor must match exactly once, matched ${hits}`);
+  fs.writeFileSync(filePath, text.replace(anchor, `${BEGIN}\n${body}\n${END}\n${anchor}`), 'utf8');
+  console.log(`[settings-tabs] ${label}: ${had ? 'replaced' : 'patched'}`);
+}
+
+const mainPath = path.join(extracted, 'out', 'main', 'index.js');
+patchOnce(
+  mainPath,
+  'electron.ipcMain.handle("check-port", async (_event) => {',
+  `// [moss] 环境准备入口：设置页「环境准备」页签用它拉起独立的 17990 界面（--no-browser，不开外部窗口）。
+// 必须注册在模块级：启动后端那条路径只在用户点「启动」时才执行，注册在里面页签就永远拉不起服务。
+// 工作台根目录在此自行解析，不依赖外层函数作用域（外层变量在模块级不可见）。
+electron.ipcMain.removeHandler("open-env-setup");
+electron.ipcMain.handle("open-env-setup", () => {
+  try {
+    const configured = process.env.MOSS_WORKBENCH_ROOT && process.env.MOSS_WORKBENCH_ROOT.trim();
+    const packaged = path$1.join(process.resourcesPath, "workbench");
+    const root = configured
+      ? configured
+      : fs$1.existsSync(path$1.join(packaged, "server", "run.py"))
+        ? packaged
+        : process.platform === "win32" ? "D:/MossTTSD" : process.cwd();
+    const script = path$1.join(root, "tools", "downloader_ui.py");
+    if (!fs$1.existsSync(script)) { console.error("[moss] 环境准备入口不存在:", script); return false; }
+    const candidates = process.platform === "win32"
+      ? [path$1.join(root, "client", "python", "python.exe"), path$1.join(root, "python", "python.exe")]
+      : [path$1.join(root, "client", "python", "python3"), path$1.join(root, "python", "python3")];
+    const python = candidates.find((p) => fs$1.existsSync(p));
+    if (!python) { console.error("[moss] 未找到可用的 Python 解释器"); return false; }
+    const child = child_process.spawn(python, [script, "--no-browser"], { cwd: root, detached: true, stdio: "ignore", windowsHide: true });
+    child.unref();
+    return true;
+  } catch (err) {
+    console.error("[moss] 环境准备启动失败:", err);
+    return false;
+  }
+});
+`,
+  'main',
+);
+
+const preloadPath = path.join(extracted, 'out', 'preload', 'index.js');
+patchOnce(
+  preloadPath,
+  '  checkPort: () => electron.ipcRenderer.invoke("check-port"),',
+  `  // [moss] 拉起并打开「环境准备」独立界面（设置页「环境准备」页签使用）
+  openEnvSetup: () => electron.ipcRenderer.invoke("open-env-setup"),
+`,
+  'preload',
+);
+
+for (const file of [mainPath, preloadPath]) {
+  const chk = spawnSync('node', ['--check', file], { encoding: 'utf8', shell: true });
+  if (chk.status !== 0) {
+    process.stderr.write(chk.stdout || '');
+    process.stderr.write(chk.stderr || '');
+    throw new Error(`node --check failed on ${file}; asar NOT written`);
+  }
+}
+console.log('[settings-tabs] main/preload node --check passed');
 
 run(['pack', extracted, output]);
 console.log(`[settings-tabs] wrote ${output}`);

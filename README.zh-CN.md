@@ -48,13 +48,13 @@
 
 安装桌面应用后即可启动使用。安装包自带工作台本体与便携 Python；首次启动后，在界面中完成两步准备：
 
-1. 在「环境准备」中使用随包便携 Python 创建 `runtime/venv`，并安装 `runtime/requirements.txt` 依赖（约 3.4 GB）。安装源会自动选择（清华 → 阿里云 → 官方 PyPI，失败自动切换，界面日志会写明实际使用的源），PyTorch 软件包通过 `--extra-index-url https://download.pytorch.org/whl/cu130` 获取（约占其中 2.7 GB）。
-2. 在「设置 → 模型下载」下载必需模型权重（约 61.8 GB）；Demucs、Whisper、MossFormer2_SE 等可选资源按需下载。FFmpeg 也在此下载（约 83 MB）。
+1. 在「设置 → 环境准备」里完成两步：① 用随包便携 Python 创建 `runtime/venv` 并安装 `runtime/requirements.txt` 依赖（约 3.4 GB，安装源自动选择：清华 → 阿里云 → 官方 PyPI，失败自动切换，界面日志会写明实际使用的源；PyTorch 软件包通过 `--extra-index-url https://download.pytorch.org/whl/cu130` 获取，约占其中 2.7 GB）；② 在同一页面的下载区下载必需模型权重（约 61.8 GB），Demucs、Whisper、MossFormer2_SE 等可选资源按需下载（FFmpeg 也在此下载，约 83 MB）。
+   该页签内嵌的就是独立的 `tools/downloader_ui.py` 界面（客户端用 `--no-browser` 拉起，**不会另开窗口**）；本机已装好依赖时会直接显示「✓ 本机环境已完成」，无需重装。
 
 安装包包含工作台本体（`server/`、`tools/`、`docs/`、`runtime/requirements.txt`、`runtime/pylibs/`、`python/`、`assets/`）及便携 CPython 3.12；不包含 `models/`、`runtime/venv/`、`runtime/ffmpeg/`、`outputs/`、`uploads/`。
 ### 从源码运行
 
-要求 Windows x64 与 64 位 Python 3.12。在源码 checkout 根目录执行 `python tools/downloader_ui.py`（不带参数）打开独立环境准备/下载界面；用该 Python 创建 `runtime/venv` 并安装 `runtime/requirements.txt`，安装时包含 PyTorch 源 `--extra-index-url https://download.pytorch.org/whl/cu130`；然后运行 `start_server.bat`，或用 venv Python 启动 `server/run.py`。
+要求 Windows x64 与 64 位 Python 3.12。在源码 checkout 根目录执行 `python tools/downloader_ui.py`（不带参数）打开独立环境准备/下载界面（加 `--no-browser` 则只起服务、不弹浏览器，客户端内嵌页签即用此方式）；用该 Python 创建 `runtime/venv` 并安装 `runtime/requirements.txt`，安装时包含 PyTorch 源 `--extra-index-url https://download.pytorch.org/whl/cu130`；然后运行 `start_server.bat`，或用 venv Python 启动 `server/run.py`。
 
 开发根目录就是源码 checkout（Windows 默认 `D:\MossTTSD`）。安装后则使用 `<install>/resources/workbench`；客户端根据安装位置解析工作台根目录，支持迁移，不应假定它在开发路径。
 
@@ -144,10 +144,10 @@ Windows x64 可在本机构建并实际运行（Electron 44.7.0，优先用本�
 
 ```bash
 node integration/enable_english_ui.js           client/resources/app.asar            # 生成 app.asar.new：持久化英文界面与翻译
-node integration/downloads_in_settings_patch.js client/resources/app.asar --apply     # 设置页「通用设置 / 模型下载」页签（应用前先备份）
+node integration/downloads_in_settings_patch.js client/resources/app.asar --apply     # 设置页「通用设置 / 环境准备」页签（应用前先备份）
 ```
 
-两者都可重复执行：再跑一次是替换已注入的块，不会叠加。`downloads_in_settings_patch.js` 追加的是自包含的 DOM 增强脚本，即使挂不上也不影响设置页本身；「模型下载」页签内嵌后端 `/downloads` 页面，按可视高度自适应，并在每次切回时重新加载（后端重启后能自愈此前失败的加载）。
+两者都可重复执行：再跑一次是替换已注入的块，不会叠加。`downloads_in_settings_patch.js` 追加的是自包含的 DOM 增强脚本，即使挂不上也不影响设置页本身；「环境准备」页签内嵌独立的 `tools/downloader_ui.py` 页面（默认端口 17990），页面里包含环境准备与模型下载两段，按可视高度自适应，并在页面报告就绪前持续重试加载（首次点开时服务还没起来也能自愈，不会停在空白页）。
 
 打包态工作台根目录默认为 `<resourcesPath>/workbench`，可由 `MOSS_WORKBENCH_ROOT` 覆盖；开发态 Windows 默认 `D:/MossTTSD`。Windows 后端始终必须由 `<workbench>/runtime/venv/Scripts/python.exe` 启动，且运行解释器路径必须完全匹配；`MOSS_TTS_PYTHON` 仅供环境准备模块发现基础解释器，不能覆盖后端解释器。PATH 发现只存在于环境准备模块，不是后端回退分支。
 
