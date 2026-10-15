@@ -29,6 +29,32 @@ Build commands are unchanged; see **Commands** below.
    Every substitution is anchored and must hit exactly once, then `node --check` gates the result.
 3. `npm run dist:win` / `npm run dist:mac:<arch>` — electron-builder with `electron-builder.yml`. **Only Windows x64 is currently supported.** macOS packages are not usable workbench deliverables until native CPython, CPU/MPS dependencies, and native FFmpeg are prepared and verified; current requirements pin CUDA PyTorch and current FFmpeg is win32-x64.
 
+## Editing the shipped asar
+
+`client/resources/app.asar` is the verbatim build input, so every UI or default-value change has to
+land **inside that asar** before `extract`. Two rules keep that safe:
+
+- **Prefer an equal-length byte replacement** when only literals change (theme defaults, fallback
+  colours, endpoint strings). Pad to equal length where needed (`'light'` → `'dark' `, or
+  `'light';` → `'dark';;`). Then verify three things: the file size is unchanged, the asar header
+  still parses, and the entry count matches the original. The header, offsets and `unpacked` flags
+  stay untouched, which is the lowest-risk possible edit.
+- **Never `asar pack` the whole tree by hand.** The shipped asar carries a large `unpacked` set
+  (~100 MB here); a manual repack drops those flags, inlines the files and grows the archive
+  (83.3 MB → 86.2 MB), which can break anything that needs a real file path. Let electron-builder
+  repack it in `dist:*` instead.
+
+Integration patches must be idempotent. A patch that removes a previously injected runtime with a
+lazy regex (`[\s\S]*?` between anchors) and re-injects it will, when re-run on an already-patched
+asar, swallow adjacent code — this happened here and deleted the `StemsTools` component definition,
+so React failed to mount and the window came up blank. Guard every injection with "is the target
+already current?" and fail loudly on an anchor mismatch instead of editing a file you do not
+recognise. Verify with a known-symbol grep **and** a real launch; a second run over a copy should be
+byte-identical.
+
+Because `dist:*` only packs `packaging/app/`, changing the asar always means re-running
+`extract` (and `retrofit`) first — otherwise the installer silently ships the previous copy.
+
 ## Commands
 
 ```bash
@@ -68,16 +94,20 @@ Icons come from `build/` (`icon.ico` for Windows, `icon.icns` for macOS, rendere
 
 Windows evidence (2026-10-15, electron-builder 26.15.3, Electron 44.7.0):
 
-- installer `MOSS-Voice-Workbench-Setup-1.0.0-win-x64.exe` — 124,239,315 B,
-  sha256 `bf4d0b839f0195d217b9e136d1710ce435ee38dd8fec556e96f0c46861907bbf`
-  (`release/windows/SHA256SUMS-win-x64.txt`);
-- `scripts/verify-package.py` on the unpacked payload: PASS — x86_64, `windows-gui`,
-  `resources/app.asar` 84,333,227 B, 55 locales;
-- real launch: the backend answered `/api/health` about 2 s after start-up, the window rendered the workbench
-  UI at 1280×768, and stopping it released port 17980 with no orphaned children;
-- silent install (`/S /D=…`): exit 0, 74 files / 470,248,049 B, installed launcher sha256 identical to the
-  build output, desktop shortcut pointing at the installed exe; silent uninstall: exit 0, install directory
-  and shortcut both removed.
+- installer `MOSS-Voice-Workbench-Setup-1.0.0-win-x64.exe` — 221,255,508 B,
+  sha256 `b0e454a85d6040bfd6cbe4b1e01a4f7c7dbd5aa99da04cb0d1961879f86f6b78`
+  (`release/windows/SHA256SUMS-win-x64.txt`); published as GitHub release `v1.0.0`
+  (tag target `4f94d4b`), both assets verified by size and server-side sha256 digest;
+- payload asar: 11,117 entries, build defaults `themeMode = 'dark'` and primary `#6a6ef6`
+  (9 occurrences, no `#f77612` leftover), injected `StemsTools` component definition present;
+- real launch: the packaged window rendered the workbench UI from the installed
+  `resources/app.asar` (CDP page target inside the install tree);
+- silent install (`/S /D=…`): exit 0, 7,927 files / 843,327,026 B, installed launcher
+  `MOSS语音工作台.exe` 246,406,656 B with the bundled `resources/workbench/python/python.exe`;
+  silent uninstall: exit 0, install directory removed, no desktop/Start-menu shortcut residue.
+  The environment-preparation service (port 17990) is started by the settings tab rather than at
+  launch, so it was not running in the install-only smoke; that page was verified separately in the
+  development client.
 
 Not verified: Windows ARM64, Windows versions other than the build machine's, upgrade-over-install, shell
 integration. The installer is **not code-signed** (no certificate available) — SmartScreen will warn.
