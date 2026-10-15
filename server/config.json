@@ -83,6 +83,7 @@
         "label": "FFmpeg（静态，国内镜像）",
         "label_en": "FFmpeg (static, CN mirror)",
         "notes": "优先 npmmirror 镜像（实测约 15 MB/s）：即 gyan 官方 essentials 静态包，单文件、无需 DLL。官方 GitHub / gyan.dev 在这台机器上被限流（实测 0.01–0.05 MB/s、秒回 0 字节），只作兜底。",
+        "notes_en": "Prefers the npmmirror copy (measured ≈15 MB/s): gyan's official essentials static build, a single file needing no DLLs. The official GitHub / gyan.dev hosts are throttled from this machine (measured 0.01–0.05 MB/s, sometimes 0 bytes returned) and are used only as a fallback.",
         "bytes": 82797568,
         "target": "runtime/ffmpeg",
         "enables": [
@@ -111,6 +112,7 @@
         "label": "MOSS Audio Tokenizer · fp32",
         "label_en": "MOSS Audio Tokenizer · fp32",
         "notes": "四个模型共享 codec；fp32 母本。",
+        "notes_en": "Shared codec for the four models; fp32 master.",
         "bytes": 7101116247,
         "target": "models/openmoss/MOSS-Audio-Tokenizer-fp32",
         "enables": [
@@ -134,6 +136,7 @@
         "label": "MOSS-TTS-v1.5",
         "label_en": "MOSS-TTS-v1.5",
         "notes": "母本方式首次加载时流式量化。",
+        "notes_en": "Quantization is streamed from the master weights on first load.",
         "bytes": 16995701633,
         "target": "models/openmoss/MOSS-TTS-v1.5",
         "enables": [
@@ -154,6 +157,7 @@
         "label": "MOSS-TTSD-v1.0",
         "label_en": "MOSS-TTSD-v1.0",
         "notes": "母本方式首次加载时流式量化。",
+        "notes_en": "Quantization is streamed from the master weights on first load.",
         "bytes": 16727055254,
         "target": "models/openmoss/MOSS-TTSD-v1.0",
         "enables": [
@@ -174,6 +178,7 @@
         "label": "MOSS-SoundEffect",
         "label_en": "MOSS-SoundEffect",
         "notes": "母本方式首次加载时流式量化。",
+        "notes_en": "Quantization is streamed from the master weights on first load.",
         "bytes": 16727042030,
         "target": "models/openmoss/MOSS-SoundEffect",
         "enables": [
@@ -194,6 +199,7 @@
         "label": "MOSS-VoiceGenerator",
         "label_en": "MOSS-VoiceGenerator",
         "notes": "母本方式首次加载时流式量化。",
+        "notes_en": "Quantization is streamed from the master weights on first load.",
         "bytes": 4244249582,
         "target": "models/openmoss/MOSS-VoiceGenerator",
         "enables": [
@@ -214,6 +220,7 @@
         "label": "Demucs Hybrid Transformer",
         "label_en": "Demucs Hybrid Transformer",
         "notes": "依据 demucs/repo.py check_checksum 约定校验 sha256 前 8 位。",
+        "notes_en": "Verified against the first 8 hex digits of the sha256, per the demucs/repo.py check_checksum convention.",
         "bytes": 57500000,
         "target": "models/demucs/5c90dfd2-34c22ccb.th",
         "enables": [
@@ -235,6 +242,7 @@
         "label": "MossFormer2 SE 48 kHz",
         "label_en": "MossFormer2 SE 48 kHz",
         "notes": "降噪模型权重。",
+        "notes_en": "Denoising model weights.",
         "bytes": 221552019,
         "target": "models/MossFormer2_SE_48K/last_best_checkpoint.pt",
         "enables": [
@@ -257,6 +265,7 @@
         "label": "Whisper Small",
         "label_en": "Whisper Small",
         "notes": "faster-whisper 离线逐字稿模型。",
+        "notes_en": "Offline transcription model for faster-whisper.",
         "bytes": 486236531,
         "target": "models/whisper-small",
         "enables": [

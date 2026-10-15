@@ -47,6 +47,7 @@
         const card = document.createElement('article');
         card.className = `download-card${item.id === need ? ' preselected' : ''}`;
         const label = window.MossI18n.language === 'english' ? (item.label_en || item.label) : item.label;
+        const notes = window.MossI18n.language === 'english' ? (item.notes_en || item.notes) : item.notes;
         const fraction = item.bytes ? Math.min(100, Math.floor((item.done_bytes || 0) * 100 / item.bytes)) : 0;
         const speedEta = item.status === 'running' ? `${bytes(item.speed_bps || 0)}/s · ${item.eta_s == null ? '—' : `${item.eta_s}s`}` : '';
         // 成功标识：下载完成即已逐文件校验过；已存在但未校验的给「未校对 + 校对按钮」
@@ -70,7 +71,7 @@
         const activity = item.present && !busy
           ? (item.error ? `<div class="download-meta"><span class="error">${esc(item.error)}</span></div>` : '')
           : `<progress max="100" value="${fraction}"></progress><div class="download-meta"><span>${bytes(item.done_bytes || 0)} / ${bytes(item.bytes)}</span><span class="error">${esc(item.error || '')}</span></div>`;
-        card.innerHTML = `<header><label><input type="checkbox" data-select="${esc(item.id)}" ${selected.has(item.id) ? 'checked' : ''} ${item.present ? 'disabled' : ''}><strong>${esc(label)}</strong></label><span class="download-figures"><span>${esc(t('downloadsPackageSize', { size: bytes(item.bytes) }))}</span>${targetDisplay(item.target, window.downloadRoot)}</span></header><p class="download-notes">${esc(item.notes || '')}</p><div class="download-meta"><span>${badge}${presentLine}</span><span class="download-row-actions">${esc(speedEta)}${actions}</span></div>${activity}`;
+        card.innerHTML = `<header><label><input type="checkbox" data-select="${esc(item.id)}" ${selected.has(item.id) ? 'checked' : ''} ${item.present ? 'disabled' : ''}><strong>${esc(label)}</strong></label><span class="download-figures"><span>${esc(t('downloadsPackageSize', { size: bytes(item.bytes) }))}</span>${targetDisplay(item.target, window.downloadRoot)}</span></header><p class="download-notes">${esc(notes || '')}</p><div class="download-meta"><span>${badge}${presentLine}</span><span class="download-row-actions">${esc(speedEta)}${actions}</span></div>${activity}`;
         host.appendChild(card);
       });
     }
