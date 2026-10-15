@@ -1,0 +1,33 @@
+.downloads-page .need-notice { padding: 12px; border: 1px solid var(--accent, #4b91d1); border-radius: 8px; margin: 12px 0; }
+.downloads-page .hidden { display: none !important; }
+.downloads-page .disk-summary, .download-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 12px 0; }
+.download-list { display: grid; gap: 12px; }
+.download-card { border: 1px solid var(--border, #8885); border-radius: 10px; padding: 14px; }
+.download-card.preselected { outline: 2px solid var(--accent, #4b91d1); }
+.download-card header, .download-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.download-card progress { width: 100%; height: 12px; }
+/* 文件大小 + 存储路径同行：路径跟在大小后面、靠右，过长省略（完整值在 title 里） */
+.download-card header .download-figures { display: flex; align-items: center; gap: 10px; min-width: 0; margin-left: auto; }
+.download-card header .download-path { display: inline-block; max-width: 46ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.download-card .error { color: var(--danger, #c33); }
+.download-card label { display: flex; gap: 8px; align-items: center; }
+.download-card .download-notes { opacity: .8; }
+
+/* 固定下载位置：只读展示，用户不参与选择 */
+.downloads-page .download-root-line { opacity: .85; }
+.downloads-page .download-root-line code, .download-card .download-path { font-size: 12px; opacity: .75; word-break: break-all; }
+
+/* 成功标识 */
+.download-card .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border, #8885); font-size: 12px; }
+.download-card .badge.ok { border-color: var(--success, #2f9e63); color: var(--success, #2f9e63); }
+.download-card .badge.warn { border-color: var(--warning, #c98a00); color: var(--warning, #c98a00); }
+.download-card .badge.bad { border-color: var(--danger, #c33); color: var(--danger, #c33); }
+.download-card .badge.verifying { border-color: var(--accent, #4b91d1); color: var(--accent, #4b91d1); }
+
+/* 被工作台设置页以内嵌 iframe 打开时：去掉重复页头与外层留白，背景透明贴合宿主主题 */
+html.embedded, html.embedded body { height: 100%; background: transparent; }
+html.embedded .downloads-page { max-width: none; margin: 0; padding: 0 2px 16px; }
+html.embedded .downloads-page .hero { display: none; }
+html.embedded ::-webkit-scrollbar { width: 10px; height: 10px; }
+html.embedded ::-webkit-scrollbar-track { background: transparent; }
+html.embedded ::-webkit-scrollbar-thumb { background: var(--border, #8885); border-radius: 999px; }

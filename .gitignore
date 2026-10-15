@@ -1,0 +1,65 @@
+# ============================================================
+# MOSS 语音工作台 —— 仓库只放源码，不放模型/运行时/构建产物
+# ============================================================
+
+# ---- 模型权重与运行时产物（可由下载中心与 requirements 重建）----
+models/
+runtime/venv/
+runtime/ffmpeg/
+outputs/
+uploads/
+release/
+temp/
+out/
+
+# runtime/pylibs：只有 vendored 的 mossformer2_se 需要入库（PyPI 无此包，run.py 强依赖）
+runtime/pylibs/*
+!runtime/pylibs/mossformer2_se/
+
+# ---- Electron 客户端发行目录：全部是构建产物 ----
+# 客户端行为的“源码”在 integration/*.py 与 packaging/scripts/*.cjs 的补丁里
+client/
+
+# ---- 隐私与第三方素材：本地保留，不入库 ----
+assets/voices/me.wav
+assets/voices/zh_11.wav
+assets/reference/
+integration/assets/moss-icon/source-460.png
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+enV/
+*.pyd
+
+# ---- Node / 构建 ----
+node_modules/
+packaging/app/
+packaging/tmp-*/
+packaging/release/
+
+# ---- 日志与临时文件 ----
+*.log
+*.tmp
+*.bak
+*.orig
+*.orig-*
+.DS_Store
+Thumbs.db
+
+# ---- 二进制兜底：避免误提交大文件 ----
+*.whl
+*.zip
+*.7z
+*.onnx
+*.safetensors
+*.pt
+*.th
+*.bin
+*.exe
+*.dll
+*.asar
+# asar 补丁脚本留下的备份/中间产物（内容与 *.asar 同类，勿入库）
+client/resources/app.asar.*

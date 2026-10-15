@@ -1,0 +1,124 @@
+# INCOMPLETE / NOT A SUPPORTED WORKBENCH BUILD: this workflow only packages the Electron shell. Before macOS is supported,
+# prepare and verify native CPython, CPU/MPS-compatible dependencies (current requirements pin CUDA-only PyTorch),
+# and native macOS FFmpeg; the current bundled FFmpeg is win32-x64. Do not treat these artifacts as usable.
+name: Build macOS
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-15-intel
+            target_arch: x86_64
+          - arch: arm64
+            runner: macos-15
+            target_arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+      ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+      APPLE_SIGNING_IDENTITY: '-'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: packaging/package-lock.json
+      - name: Install dependencies
+        working-directory: packaging
+        run: npm ci
+      - name: Build macOS distribution
+        working-directory: packaging
+        run: npm run dist:mac:${{ matrix.arch }}
+      - name: Verify macOS packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(release/macos/*.dmg release/macos/*.zip)
+          if [ ${#packages[@]} -eq 0 ]; then
+            echo "No DMG or ZIP packages found in release/macos" >&2
+            exit 1
+          fi
+          arch='${{ matrix.target_arch }}'
+          for package in "${packages[@]}"; do
+            work="$RUNNER_TEMP/macos-verify-$(basename "$package")"
+            mkdir -p "$work"
+            mount="$work/mount"
+            app_path=''
+            cleanup() {
+              if [ -n "${mount_attached:-}" ]; then hdiutil detach "$mount" -quiet || true; fi
+              rm -rf "$work"
+            }
+            trap cleanup EXIT
+            case "$package" in
+              *.dmg)
+                hdiutil verify "$package"
+                mkdir -p "$mount"
+                hdiutil attach "$package" -readonly -nobrowse -mountpoint "$mount"
+                mount_attached=1
+                app_path="$mount/MOSS语音工作台.app"
+                ;;
+              *.zip)
+                unzip -q "$package" -d "$work/unpacked"
+                app_path="$work/unpacked/MOSS语音工作台.app"
+                ;;
+            esac
+            if [ ! -d "$app_path" ]; then
+              echo "MOSS语音工作台.app not found in $package" >&2
+              find "$work" -maxdepth 5 -print
+              exit 1
+            fi
+            executable="$app_path/Contents/MacOS/MOSS语音工作台"
+            if [ ! -x "$executable" ]; then
+              executable=$(find "$app_path/Contents/MacOS" -maxdepth 1 -type f -perm -111 -print -quit)
+            fi
+            if [ -z "$executable" ] || [ ! -x "$executable" ]; then
+              echo "No executable found in $app_path/Contents/MacOS" >&2
+              exit 1
+            fi
+            lipo "$executable" -verify_arch "$arch"
+            codesign --verify --deep --strict --verbose=2 "$app_path"
+            "$executable" > "$work/smoke.log" 2>&1 &
+            pid=$!
+            sleep 10
+            if ! kill -0 "$pid" 2>/dev/null; then
+              cat "$work/smoke.log"
+              echo "Application process exited during smoke test" >&2
+              exit 1
+            fi
+            screenshot="$work/smoke.png"
+            screencapture -x "$screenshot"
+            if [ ! -s "$screenshot" ]; then
+              echo "Screenshot missing or empty" >&2
+              exit 1
+            fi
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            if [ -n "${mount_attached:-}" ]; then
+              hdiutil detach "$mount" -quiet
+              mount_attached=''
+            fi
+            rm -rf "$work"
+            trap - EXIT
+          done
+      - name: Write checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(release/macos/*.dmg release/macos/*.zip)
+          if [ ${#packages[@]} -eq 0 ]; then exit 1; fi
+          shasum -a 256 "${packages[@]}" > "release/macos/SHA256SUMS-${{ matrix.arch }}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MOSS-mac-${{ matrix.arch }}
+          if-no-files-found: error
+          path: release/macos/*

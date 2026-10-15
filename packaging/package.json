@@ -1,0 +1,20 @@
+{
+  "name": "moss-voice-workbench-packaging",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Build project that packages the MOSS Voice Workbench Electron client for Windows and macOS",
+  "scripts": {
+    "extract": "asar extract ../client/resources/app.asar app",
+    "retrofit": "node scripts/prepare-app.cjs",
+    "check": "node scripts/prepare-app.cjs --check",
+    "dist:win:dir": "electron-builder --project app -c ../electron-builder.yml --dir --win --x64 --publish never -c.directories.output=../../release/windows-dir",
+    "dist:win": "electron-builder --project app -c ../electron-builder.yml --win nsis --x64 --publish never -c.directories.output=../../release/windows",
+    "dist:mac:x64": "electron-builder --project app -c ../electron-builder.yml --mac dmg zip --x64 --publish never -c.directories.output=../../release/macos",
+    "dist:mac:arm64": "electron-builder --project app -c ../electron-builder.yml --mac dmg zip --arm64 --publish never -c.directories.output=../../release/macos"
+  },
+  "devDependencies": {
+    "@electron/asar": "^4.0.4",
+    "electron": "44.7.0",
+    "electron-builder": "^26.0.12"
+  }
+}

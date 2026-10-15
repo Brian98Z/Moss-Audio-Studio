@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MOSS Tools</title>
+<!-- 主题脚本必须先于样式执行：首帧前定好 data-theme（暗色不白闪），并从这里取主色 -->
+<script src="/static/theme.js?v=__UI_BUILD__"></script>
+<style>
+  :root {
+    --t-bg: #fff;
+    --t-fg: #202020;
+    --t-muted: #666;
+    --t-line: #e8e8e8;
+    --t-accent: var(--accent, #f77612);
+  }
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --t-bg: #0f1219;
+    --t-fg: #e7ebf5;
+    --t-muted: #97a1b8;
+    --t-line: #2a3140;
+    --t-accent: var(--accent, #7b80ff);
+  }
+  body { margin: 0; padding: 32px; font: 14px system-ui; color: var(--t-fg); background: var(--t-bg); }
+  h1 { font-size: 24px; margin: 0 0 24px; }
+  .tools { display: flex; flex-wrap: wrap; gap: 20px; }
+  a { display: block; width: 260px; padding: 24px; border: 1px solid var(--t-line); border-radius: 12px; text-decoration: none; color: inherit; transition: border-color .15s ease; }
+  a:hover { border-color: var(--t-accent); }
+  svg { width: 36px; height: 36px; color: var(--t-accent); }
+  h2 { font-size: 17px; }
+  p { color: var(--t-muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+<h1 id="title"></h1>
+<div class="tools">
+  <a id="stems"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 8v8m4-12v16m4-13v10m4-15v20m4-14v8"/></svg><h2 id="name"></h2><p id="description"></p></a>
+  <a id="vocals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M6 10v2a6 6 0 0 0 12 0v-2M12 18v4m-4 0h8"/></svg><h2 id="vname"></h2><p id="vdescription"></p></a>
+  <a id="denoise"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></svg><h2 id="dname"></h2><p id="ddescription"></p></a>
+</div>
+<script>
+  let language = new URLSearchParams(location.search).get('language') || 'chinese';
+  // 把主题参数一并带进 Stems 子页，避免子页先按默认色渲染再纠正
+  function themeQuery() {
+    if (!window.MossTheme) return '';
+    const t = MossTheme.get();
+    return '&theme=' + encodeURIComponent(t.mode) + (t.primary ? '&primary=' + t.primary.slice(1) : '');
+  }
+  function render() {
+    const en = language === 'english';
+    document.documentElement.lang = en ? 'en' : 'zh-CN';
+    document.getElementById('title').textContent = en ? 'Tools' : '工具';
+    document.getElementById('name').textContent = en ? 'Stems · Audio separation' : 'Stems · 音频拆分';
+    document.getElementById('description').textContent = en ? 'Separate vocals, drums, bass, piano, guitar and other accompaniment.' : '分离人声、鼓组、贝斯、钢琴、吉他和其他伴奏。';
+    document.getElementById('vname').textContent = en ? 'Vocal separation' : '人声分离';
+    document.getElementById('vdescription').textContent = en ? 'Extract vocals and instrumental accompaniment as two tracks.' : '提取人声与伴奏，输出两条独立音轨。';
+    document.getElementById('dname').textContent = en ? 'Denoise · Audio cleanup' : '降噪 · 音频净化';
+    document.getElementById('ddescription').textContent = en ? 'Remove background noise, hiss and hum; keep voice and instruments intact.' : '去除背景噪声、嘶声与电流声，尽量不损伤人声与乐器。';
+    document.getElementById('stems').href = '/tools/stems?language=' + language + themeQuery();
+    document.getElementById('vocals').href = '/tools/stems?mode=vocals&language=' + language + themeQuery();
+    document.getElementById('denoise').href = '/tools/denoise?language=' + language + themeQuery();
+  }
+  window.addEventListener('message', e => {
+    if (e.source === parent && e.data?.type === 'moss-language') { language = e.data.language; render(); }
+  });
+  if (window.MossTheme) MossTheme.on(render);
+  render();
+</script>
+</body>
+</html>

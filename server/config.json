@@ -1,0 +1,276 @@
+{
+  "host": "0.0.0.0",
+  "port": 17980,
+  "quant": "int8",
+  "attn_implementation": "auto",
+  "tokenizer_dtype": "float16",
+  "tokenizer_device": "auto",
+  "tokenizer_swap": true,
+  "output_dir": "../outputs",
+  "codec_note": "codec 只用 models/openmoss/MOSS-Audio-Tokenizer-fp16；缺少其权重时回退至 fp32 母本。",
+  "upload_dir": "../uploads",
+  "upload_max_bytes": 536870912,
+  "cors_origins": [
+    "*"
+  ],
+  "api_token": "",
+  "asr": {
+    "model": "../models/whisper-small",
+    "device": "cpu",
+    "compute_type": "int8",
+    "beam_size": 5
+  },
+  "denoise": {
+    "label": "人声降噪 · MossFormer2_SE_48K（48 kHz）",
+    "kind": "denoise",
+    "path": "../models/MossFormer2_SE_48K",
+    "checkpoint": "../models/MossFormer2_SE_48K/last_best_checkpoint.pt",
+    "config_path": "../models/MossFormer2_SE_48K/config.json",
+    "download_url": "https://www.modelscope.cn/api/v1/models/alibabasglab/MossFormer2_SE_48K/repo?Revision=master&FilePath=last_best_checkpoint.pt",
+    "download_url_fallback": "https://www.modelscope.cn/api/v1/models/iic/ClearerVoice-Studio/repo?Revision=master&FilePath=MossFormer2_SE_48K%2Flast_best_checkpoint.pt",
+    "download_tool": "tools\\download_denoise_models.py",
+    "sha256": "03692b9f773bbd6bb43b9c5a41f96b1e28affd66e13796b7bec66ad3d8b227c6",
+    "size_bytes": 221552019
+  },
+  "models": {
+    "ttsd": {
+      "label": "MOSS-TTSD-v1.0 · 多人对话配音",
+      "kind": "ttsd",
+      "path": "../models/openmoss/MOSS-TTSD-v1.0",
+      "codec_path": "../models/openmoss/MOSS-Audio-Tokenizer-fp16",
+      "codec_path_fallback": "../models/openmoss/MOSS-Audio-Tokenizer-fp32",
+      "quant_checkpoint": "../models/openmoss/MOSS-TTSD-v1.0-int8-nohead",
+      "note": "多人对话配音（MOSS-TTSD-v1.0）。完整精度母本下载后可在首次加载时流式量化；默认优先使用本地 int8-nohead 落盘权重。",
+      "quant_checkpoint_note": "头留 bf16 构建（--exclude lm_heads），与 SoundEffect 同款新约定；Δ 未经多 prompt 复测，音频域与头 int8 版无可闻差异（同类构建实测）。"
+    },
+    "sfx": {
+      "label": "MOSS-SoundEffect · 音效/环境声",
+      "kind": "sfx",
+      "path": "../models/openmoss/MOSS-SoundEffect",
+      "codec_path": "../models/openmoss/MOSS-Audio-Tokenizer-fp16",
+      "codec_path_fallback": "../models/openmoss/MOSS-Audio-Tokenizer-fp32",
+      "quant_checkpoint": "../models/openmoss/MOSS-SoundEffect-int8-nohead",
+      "quant_checkpoint_convrot": "",
+      "quant_checkpoint_convrot_note": "已删除（2026-10-13）：旋转在部署口径下越转越差，实验产物已清理。需要时用 quantformats/quanto_ondisk.py --rot-topk k 重建（约 100 s/个），并把此字段指向新目录即可启用 quant='int8+convrot'。",
+      "note": "音效/环境声生成。落盘 int8-nohead 权重优先；convrot 产物当前不存在，需重建后才可启用。"
+    },
+    "tts": {
+      "label": "MOSS-TTS-v1.5 · 单人配音 / 音色克隆",
+      "kind": "tts",
+      "path": "../models/openmoss/MOSS-TTS-v1.5",
+      "codec_path": "../models/openmoss/MOSS-Audio-Tokenizer-fp16",
+      "codec_path_fallback": "../models/openmoss/MOSS-Audio-Tokenizer-fp32",
+      "quant_checkpoint": "../models/openmoss/MOSS-TTS-v1.5-int8-nohead",
+      "note": "零样本音色克隆（MossTTSDelay 8B）。落盘 int8 产物放在 models/openmoss/ 下；bf16 母本（16.7 GB，仅重新量化时才需要）**未随本树保留**，本树只发 int8 落盘产物 ⇒ 选 quant=none / fp8 会失败并给出明确提示（引擎有保护），需要时用 tools\\download_models.py tts --dest <位置> 重下。",
+      "voice_file": "../assets/voices/voices.jsonl",
+      "voice_root": "../assets/voices"
+    },
+    "vg": {
+      "label": "MOSS-VoiceGenerator · 音色设计（文本描述→音色）",
+      "kind": "vg",
+      "path": "../models/openmoss/MOSS-VoiceGenerator",
+      "codec_path": "../models/openmoss/MOSS-Audio-Tokenizer-fp16",
+      "codec_path_fallback": "../models/openmoss/MOSS-Audio-Tokenizer-fp32",
+      "quant_checkpoint": "../models/openmoss/MOSS-VoiceGenerator-int8-nohead",
+      "note": "1.7B MossTTSDelay，与 8B 版共用同一套处理器代码（走 instruction 槽位）。无需参考音频：自由文本描述音色/情绪/风格。默认走与其它三个模型同款的 int8 + no-head 落盘产物（--exclude lm_heads，2.84 GB；选 none 需要 bf16 母本在位，该母本 4.23 GB **2026-10-14 已删除**，需要时用 tools\\download_models.py vg --dest <位置> 重下）。模型卡推荐采样 1.5/0.6/50/1.1。"
+    }
+  },
+  "downloads": {
+    "items": [
+      {
+        "id": "ffmpeg",
+        "group": "required",
+        "label": "FFmpeg（静态，国内镜像）",
+        "label_en": "FFmpeg (static, CN mirror)",
+        "notes": "优先 npmmirror 镜像（实测约 15 MB/s）：即 gyan 官方 essentials 静态包，单文件、无需 DLL。官方 GitHub / gyan.dev 在这台机器上被限流（实测 0.01–0.05 MB/s、秒回 0 字节），只作兜底。",
+        "bytes": 82797568,
+        "target": "runtime/ffmpeg",
+        "enables": [
+          "mp3/m4a 解码"
+        ],
+        "source": {
+          "type": "bin",
+          "url": "https://registry.npmmirror.com/-/binary/ffmpeg-static/b6.1.1/ffmpeg-win32-x64",
+          "name": "ffmpeg.exe",
+          "bytes": 82797568,
+          "sha256": "04e1307997530f9cf2fe35cba2ca7e8875ca91da02f89d6c7243df819c94ad00",
+          "fallback_sources": [
+            {
+              "type": "zip",
+              "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip",
+              "sha256": "8605f47c7509f343cd4b972a7127d60d2f0bd8abbba80d45f915b8ad5e3d720d",
+              "bytes": 90332558
+            }
+          ]
+        },
+        "source_label": "npmmirror ffmpeg-static b6.1.1（gyan essentials 静态）→ 兜底 BtbN shared zip"
+      },
+      {
+        "id": "openmoss-tokenizer",
+        "group": "required",
+        "label": "MOSS Audio Tokenizer · fp32",
+        "label_en": "MOSS Audio Tokenizer · fp32",
+        "notes": "四个模型共享 codec；fp32 母本。",
+        "bytes": 7101116247,
+        "target": "models/openmoss/MOSS-Audio-Tokenizer-fp32",
+        "enables": [
+          "ttsd",
+          "tts",
+          "sfx",
+          "vg"
+        ],
+        "source": {
+          "type": "modelscope",
+          "repo": "openmoss/MOSS-Audio-Tokenizer"
+        },
+        "verify": {
+          "per_file": "Size+Sha256"
+        },
+        "source_label": "ModelScope · openmoss/MOSS-Audio-Tokenizer"
+      },
+      {
+        "id": "openmoss-tts",
+        "group": "required",
+        "label": "MOSS-TTS-v1.5",
+        "label_en": "MOSS-TTS-v1.5",
+        "notes": "母本方式首次加载时流式量化。",
+        "bytes": 16995701633,
+        "target": "models/openmoss/MOSS-TTS-v1.5",
+        "enables": [
+          "tts"
+        ],
+        "source": {
+          "type": "modelscope",
+          "repo": "openmoss/MOSS-TTS-v1.5"
+        },
+        "verify": {
+          "per_file": "Size+Sha256"
+        },
+        "source_label": "ModelScope · openmoss/MOSS-TTS-v1.5"
+      },
+      {
+        "id": "openmoss-ttsd",
+        "group": "required",
+        "label": "MOSS-TTSD-v1.0",
+        "label_en": "MOSS-TTSD-v1.0",
+        "notes": "母本方式首次加载时流式量化。",
+        "bytes": 16727055254,
+        "target": "models/openmoss/MOSS-TTSD-v1.0",
+        "enables": [
+          "ttsd"
+        ],
+        "source": {
+          "type": "modelscope",
+          "repo": "openmoss/MOSS-TTSD-v1.0"
+        },
+        "verify": {
+          "per_file": "Size+Sha256"
+        },
+        "source_label": "ModelScope · openmoss/MOSS-TTSD-v1.0"
+      },
+      {
+        "id": "openmoss-sfx",
+        "group": "required",
+        "label": "MOSS-SoundEffect",
+        "label_en": "MOSS-SoundEffect",
+        "notes": "母本方式首次加载时流式量化。",
+        "bytes": 16727042030,
+        "target": "models/openmoss/MOSS-SoundEffect",
+        "enables": [
+          "sfx"
+        ],
+        "source": {
+          "type": "modelscope",
+          "repo": "openmoss/MOSS-SoundEffect"
+        },
+        "verify": {
+          "per_file": "Size+Sha256"
+        },
+        "source_label": "ModelScope · openmoss/MOSS-SoundEffect"
+      },
+      {
+        "id": "openmoss-vg",
+        "group": "required",
+        "label": "MOSS-VoiceGenerator",
+        "label_en": "MOSS-VoiceGenerator",
+        "notes": "母本方式首次加载时流式量化。",
+        "bytes": 4244249582,
+        "target": "models/openmoss/MOSS-VoiceGenerator",
+        "enables": [
+          "vg"
+        ],
+        "source": {
+          "type": "modelscope",
+          "repo": "openmoss/MOSS-VoiceGenerator"
+        },
+        "verify": {
+          "per_file": "Size+Sha256"
+        },
+        "source_label": "ModelScope · openmoss/MOSS-VoiceGenerator"
+      },
+      {
+        "id": "demucs",
+        "group": "optional",
+        "label": "Demucs Hybrid Transformer",
+        "label_en": "Demucs Hybrid Transformer",
+        "notes": "依据 demucs/repo.py check_checksum 约定校验 sha256 前 8 位。",
+        "bytes": 57500000,
+        "target": "models/demucs/5c90dfd2-34c22ccb.th",
+        "enables": [
+          "stems"
+        ],
+        "source": {
+          "type": "url",
+          "url": "https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/5c90dfd2-34c22ccb.th",
+          "prefix8": "34c22ccb"
+        },
+        "verify": {
+          "sha256_prefix": "34c22ccb"
+        },
+        "source_label": "Demucs upstream"
+      },
+      {
+        "id": "mossformer2",
+        "group": "optional",
+        "label": "MossFormer2 SE 48 kHz",
+        "label_en": "MossFormer2 SE 48 kHz",
+        "notes": "降噪模型权重。",
+        "bytes": 221552019,
+        "target": "models/MossFormer2_SE_48K/last_best_checkpoint.pt",
+        "enables": [
+          "denoise"
+        ],
+        "source": {
+          "type": "url",
+          "url": "https://www.modelscope.cn/api/v1/models/alibabasglab/MossFormer2_SE_48K/repo?Revision=master&FilePath=last_best_checkpoint.pt",
+          "url_fallback": "https://www.modelscope.cn/api/v1/models/iic/ClearerVoice-Studio/repo?Revision=master&FilePath=MossFormer2_SE_48K%2Flast_best_checkpoint.pt",
+          "sha256": "03692b9f773bbd6bb43b9c5a41f96b1e28affd66e13796b7bec66ad3d8b227c6"
+        },
+        "verify": {
+          "sha256": "03692b9f773bbd6bb43b9c5a41f96b1e28affd66e13796b7bec66ad3d8b227c6"
+        },
+        "source_label": "ModelScope · MossFormer2"
+      },
+      {
+        "id": "whisper-small",
+        "group": "optional",
+        "label": "Whisper Small",
+        "label_en": "Whisper Small",
+        "notes": "faster-whisper 离线逐字稿模型。",
+        "bytes": 486236531,
+        "target": "models/whisper-small",
+        "enables": [
+          "asr"
+        ],
+        "source": {
+          "type": "modelscope",
+          "repo": "Systran/faster-whisper-small"
+        },
+        "verify": {
+          "per_file": "Size+Sha256"
+        },
+        "source_label": "ModelScope · Systran/faster-whisper-small"
+      }
+    ]
+  }
+}

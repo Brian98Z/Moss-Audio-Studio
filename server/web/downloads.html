@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MOSS · 下载中心</title>
+  <script src="/static/theme.js?v=__UI_BUILD__"></script>
+  <link rel="stylesheet" href="/static/style.css?v=__UI_BUILD__" />
+  <link rel="stylesheet" href="/static/downloads.css?v=__UI_BUILD__" />
+</head>
+<body>
+<div class="page downloads-page">
+  <header class="hero"><h1 data-i18n="downloadsTitle">下载中心</h1><p data-i18n="downloadsSubtitle">管理工作台模型与组件</p></header>
+  <div class="panel">
+    <p data-i18n="downloadsMasterNote">母本方式首载较慢：首次加载时会从权重母本流式量化，耗时可能较长。</p>
+    <p class="download-root-line"><span data-i18n="downloadsFixedPath">下载位置：工作台目录内（当前根目录）</span>: <code id="downloadRoot" dir="ltr">—</code><small data-i18n="downloadsRelativePaths">各项落点见下方相对路径</small></p>
+    <div id="needNotice" class="need-notice hidden" role="status"></div>
+    <div class="disk-summary"><span data-i18n="downloadsTotal">所选下载总量</span>: <strong id="selectedTotal">—</strong><span id="diskFree"></span></div>
+    <div class="download-actions">
+      <button id="selectAll" type="button" data-i18n="downloadsSelectAll">全选</button>
+      <button id="selectNone" type="button" data-i18n="downloadsSelectNone">反选/清空</button>
+      <button id="startDownloads" type="button" data-i18n="downloadsStart">开始下载</button>
+      <button id="cancelDownloads" type="button" data-i18n="downloadsCancel">取消下载</button>
+      <button id="verifyDownloads" type="button" data-i18n="downloadsVerifyAll">校对文件</button>
+    </div>
+    <p id="downloadMessage" role="status"></p>
+  </div>
+  <section class="panel"><h2 data-i18n="downloadsRequired">必选组件</h2><div id="requiredItems" class="download-list"></div></section>
+  <section class="panel"><h2 data-i18n="downloadsOptional">可选组件</h2><div id="optionalItems" class="download-list"></div></section>
+</div>
+<script src="/static/i18n.js?v=__UI_BUILD__"></script>
+<script src="/static/downloads.js?v=__UI_BUILD__"></script>
+</body>
+</html>

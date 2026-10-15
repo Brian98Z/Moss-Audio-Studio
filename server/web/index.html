@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MOSS 语音工作台 · 单人配音 / 音色设计 / 多人对话 / 音效生成</title>
+  <!-- 主题脚本放在样式之前：首帧前就定好 data-theme，暗色下不会先白闪 -->
+  <script src="/static/theme.js?v=__UI_BUILD__"></script>
+  <link rel="stylesheet" href="/static/style.css?v=__UI_BUILD__" />
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <div>
+      <h1 data-i18n="heroTitle">MOSS 语音工作台</h1>
+      <p data-i18n="heroSubtitle">MOSS-TTS Local Transformer 单人配音 / 音色克隆 · MOSS-TTSD-v1.0 多人对话配音 · MOSS-SoundEffect 音效与环境声 · 本地 GPU 推理</p>
+    </div>
+    <div class="badges" id="badges"></div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="ttsd" data-i18n="tabTtsd">对话配音</button>
+    <button class="tab" data-tab="tts" data-i18n="tabTts">单人配音</button>
+    <button class="tab" data-tab="vg" data-i18n="tabVg">音色设计</button>
+    <button class="tab" data-tab="sfx" data-i18n="tabSfx">音效生成</button>
+    <button class="tab" data-tab="models" data-i18n="tabModels">模型与输出</button>
+    <button class="tab" data-tab="help" data-i18n="tabHelp">使用说明</button>
+  </nav>
+
+  <!-- ============================== 对话配音 ============================== -->
+  <section id="tab-ttsd" class="tabpane">
+    <div class="grid">
+      <div class="panel">
+        <h2 data-i18n="ttsdPanel1Title">1 · 说话人参考（1–5 人，零样本克隆）</h2>
+        <p class="hint" data-i18n="ttsdPanel1Hint">
+          每位说话人上传 3–10 秒干净人声，并填写该段参考音频的<b>逐字稿</b>（必须与音频内容一致，
+          脚本里用 <code>[S1]</code>/<code>[S2]</code> 对应）。参考音频决定音色，逐字稿影响韵律对齐。
+        </p>
+        <div id="speakers"></div>
+        <div class="toolbar">
+          <button class="small" id="addSpeaker" data-i18n="addSpeaker">+ 添加说话人</button>
+          <span class="spacer"></span>
+          <span class="status" id="ttsdUploadStatus"></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 data-i18n="ttsdPanel2Title">2 · 对话脚本与参数</h2>
+        <p class="hint" data-i18n="ttsdPanel2Hint">脚本按 <code>[S1] … [S2] …</code> 交替书写；模型一次连续生成整段对话（含轮次切换与重叠韵律）。</p>
+        <div class="chips" id="ttsdTags"></div>
+        <label class="field">
+          <span data-i18n="ttsdScriptLabel">对话脚本</span>
+          <textarea id="ttsdScript" rows="10"></textarea>
+        </label>
+        <div class="row">
+          <label class="field"><span data-i18n="ttsdMinutesLabel">时长上限（分钟）</span><input type="number" id="ttsdMinutes" value="2" min="0.2" max="30" step="0.5" /><small data-i18n="ttsdMinutesNote">1 秒 ≈ 12.5 个音频 token</small></label>
+          <label class="field"><span data-i18n="seedLabel">随机种子（0=随机）</span><input type="number" id="ttsdSeed" value="1234" /></label>
+          <label class="field"><span data-i18n="takesLabel">生成条数</span><input type="number" id="ttsdTakes" value="1" min="1" max="6" /></label>
+        </div>
+        <details>
+            <summary class="status" style="cursor:pointer" data-i18n="ttsdAdvanced">高级采样参数（TTSD 官方推荐 1.1 / 0.9 / 50 / 1.1）</summary>
+          <div class="row" style="margin-top:10px">
+            <label class="field"><span>temperature</span><input type="number" id="ttsdTemp" value="1.1" step="0.05" /></label>
+            <label class="field"><span>top_p</span><input type="number" id="ttsdTopP" value="0.9" step="0.05" /></label>
+            <label class="field"><span>top_k</span><input type="number" id="ttsdTopK" value="50" /></label>
+            <label class="field"><span>repetition_penalty</span><input type="number" id="ttsdRp" value="1.1" step="0.05" /></label>
+          </div>
+        </details>
+        <div class="toolbar" style="margin-top:6px">
+          <button class="primary" id="ttsdRun" data-i18n="ttsdRun">生成对话音频</button>
+          <button id="ttsdLoad" data-i18n="ttsdLoad">加载/切换 TTSD 模型</button>
+        </div>
+        <div class="progress hidden" id="ttsdProgress"><i></i></div>
+        <p class="status" id="ttsdStatus"></p>
+        <div class="results" id="ttsdResults"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 单人配音 / 音色克隆 ============================== -->
+  <section id="tab-tts" class="tabpane hidden">
+    <div class="grid">
+      <div class="panel">
+        <h2 data-i18n="ttsPanel1Title">1 · 参考音色（零样本克隆）</h2>
+        <p class="hint" data-i18n="ttsPanel1Hint">
+          参考音频决定音色，与文本语言无关。内置音色列表直接可用；换成自己的录音时，
+          上传 3–10 秒干净人声（无混响、无背景音乐）效果最稳。
+        </p>
+        <label class="field">
+          <span data-i18n="ttsVoiceLabel">音色列表（内置参考音频）</span>
+          <select id="ttsVoice"></select>
+          <small class="status" id="ttsVoiceInfo"></small>
+        </label>
+        <label class="field">
+          <span data-i18n="ttsRefLabel">参考音频（wav / mp3 / flac）</span>
+          <input type="file" accept="audio/*" id="ttsRefFile" />
+          <small class="status" id="ttsRefInfo"></small>
+        </label>
+        <div id="ttsVoicePreview"></div>
+      </div>
+
+      <div class="panel">
+        <h2 data-i18n="ttsPanel2Title">2 · 待转换文本与参数</h2>
+        <label class="field">
+          <span data-i18n="ttsTextLabel">待转换文本</span>
+          <textarea id="ttsText" rows="8" data-i18n-placeholder="ttsTextPlaceholder"></textarea>
+          <small class="status" data-i18n="ttsTextHint">支持中英混说与其它 31 种语言；中文可用 <code>[pause 1.5s]</code> 指定停顿，也可直接写拼音（<code>ni3 hao3</code>）。</small>
+        </label>
+        <div class="row">
+          <label class="field"><span data-i18n="ttsSecondsLabel">时长上限（秒，0=模型自定）</span><input type="number" id="ttsSeconds" value="0" min="0" max="3600" step="1" /><small data-i18n="ttsSecondsNote">1 秒 ≈ 12.5 个音频 token；实测填了时长会按该预算收尾，长句可能被截短，留 0 最稳</small></label>
+          <label class="field"><span data-i18n="languageHintLabel">语种提示（可空）</span><input type="text" id="ttsLanguage" data-i18n-placeholder="languageHintPlaceholder" /></label>
+        </div>
+        <div class="row">
+          <label class="field"><span data-i18n="seedLabel">随机种子（0=随机）</span><input type="number" id="ttsSeed" value="0" /></label>
+          <label class="field"><span data-i18n="takesLabel">生成条数</span><input type="number" id="ttsTakes" value="1" min="1" max="6" /></label>
+        </div>
+        <details>
+          <summary class="status" style="cursor:pointer" data-i18n="ttsAdvanced">高级采样参数（MOSS-TTS Delay-8B 官方推荐 1.7 / 0.8 / 25 / 1.0）</summary>
+          <div class="row" style="margin-top:10px">
+            <label class="field"><span>audio temperature</span><input type="number" id="ttsTemp" value="1.7" step="0.05" min="0.05" max="2" /></label>
+            <label class="field"><span>audio top_p</span><input type="number" id="ttsTopP" value="0.8" step="0.05" min="0.05" max="1" /></label>
+            <label class="field"><span>audio top_k</span><input type="number" id="ttsTopK" value="25" min="1" /></label>
+            <label class="field"><span>repetition_penalty</span><input type="number" id="ttsRp" value="1.0" step="0.05" min="1" max="2" /></label>
+          </div>
+          <p class="hint" data-i18n="ttsAdvancedNote">MOSS-TTS 是基座模型，对采样参数敏感：官方推荐值之外的组合容易丢结尾或出现循环。</p>
+        </details>
+        <div class="toolbar" style="margin-top:6px">
+          <button class="primary" id="ttsRun" data-i18n="ttsRun">生成单人配音</button>
+          <button id="ttsLoad" data-i18n="ttsLoad">加载/切换 MOSS-TTS 模型</button>
+        </div>
+        <div class="progress hidden" id="ttsProgress"><i></i></div>
+        <p class="status" id="ttsStatus"></p>
+        <div class="results" id="ttsResults"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 音色设计（VoiceGenerator） ============================== -->
+  <section id="tab-vg" class="tabpane hidden">
+    <div class="grid">
+      <div class="panel">
+        <h2 data-i18n="vgPanel1Title">1 · 音色描述（无需参考音频）</h2>
+        <p class="hint" data-i18n="vgPanel1Hint">
+          用自由文本描述想要的音色与说话方式：性别、年龄、音质、情绪、语速、口音……
+          模型据此"设计"出音色再念出右侧文本。中文、英文质量最好，描述越具体越稳。
+        </p>
+        <div class="chips" id="vgChips">
+          <button class="chip" data-i18n="vgChip1">疲惫沙哑的老年声音缓慢抱怨，带有轻微呻吟。</button>
+          <button class="chip" data-i18n="vgChip2">热情的美食节目主持人，语调生动活泼，充满对美食的热爱和专业精神。</button>
+          <button class="chip" data-i18n="vgChip3">Hearty, jovial tavern owner's voice, loud and welcoming with a slightly gruff, friendly tone in American English, radiating warmth and hospitality.</button>
+          <button class="chip" data-i18n="vgChip4">Clear, neutral voice for phonetic practice, even tempo and precise articulation in standard American English, emphasizing clarity of each word.</button>
+        </div>
+        <label class="field">
+          <span data-i18n="vgInstructionLabel">音色 / 风格描述（instruction）</span>
+          <textarea id="vgInstruction" rows="7" data-i18n-placeholder="vgInstructionPlaceholder"></textarea>
+          <small class="status" data-i18n="vgInstructionHint">点上方任一示例即填入；也可以自己写。想固定成可复用的音色：把生成结果下载后当参考音频，拿到「单人配音」页做零样本克隆。</small>
+        </label>
+      </div>
+
+      <div class="panel">
+        <h2 data-i18n="vgPanel2Title">2 · 待合成文本与参数</h2>
+        <label class="field">
+          <span data-i18n="ttsTextLabel">待转换文本</span>
+          <textarea id="vgText" rows="6" data-i18n-placeholder="vgTextPlaceholder"></textarea>
+          <small class="status" data-i18n="vgTextHint">描述与文本会拼在一起送入模型，因此不需要任何参考音频。</small>
+        </label>
+        <div class="row">
+          <label class="field"><span data-i18n="ttsSecondsLabel">时长上限（秒，0=模型自定）</span><input type="number" id="vgSeconds" value="0" min="0" max="3600" step="1" /><small data-i18n="vgSecondsNote">同单人配音：留 0 最稳，填了会按该预算收尾</small></label>
+          <label class="field"><span data-i18n="languageHintLabel">语种提示（可空）</span><input type="text" id="vgLanguage" data-i18n-placeholder="languageHintPlaceholderVg" /></label>
+        </div>
+        <div class="row">
+          <label class="field"><span data-i18n="seedLabel">随机种子（0=随机）</span><input type="number" id="vgSeed" value="0" /></label>
+          <label class="field"><span data-i18n="takesLabel">生成条数</span><input type="number" id="vgTakes" value="1" min="1" max="6" /></label>
+        </div>
+        <details>
+          <summary class="status" style="cursor:pointer" data-i18n="vgAdvanced">高级采样参数（MOSS-VoiceGenerator 官方推荐 1.5 / 0.6 / 50 / 1.1）</summary>
+          <div class="row" style="margin-top:10px">
+            <label class="field"><span>audio temperature</span><input type="number" id="vgTemp" value="1.5" step="0.05" min="0.05" max="2" /></label>
+            <label class="field"><span>audio top_p</span><input type="number" id="vgTopP" value="0.6" step="0.05" min="0.05" max="1" /></label>
+            <label class="field"><span>audio top_k</span><input type="number" id="vgTopK" value="50" min="1" /></label>
+            <label class="field"><span>repetition_penalty</span><input type="number" id="vgRp" value="1.1" step="0.05" min="1" max="2" /></label>
+          </div>
+          <p class="hint" data-i18n="vgAdvancedNote">官方模型卡提示：该模型对采样参数敏感，偏离推荐值容易音色漂移或丢结尾。</p>
+        </details>
+        <div class="toolbar" style="margin-top:6px">
+          <button class="primary" id="vgRun" data-i18n="vgRun">生成音色配音</button>
+          <button id="vgLoad" data-i18n="vgLoad">加载/切换 VoiceGenerator 模型</button>
+        </div>
+        <div class="progress hidden" id="vgProgress"><i></i></div>
+        <p class="status" id="vgStatus"></p>
+        <div class="results" id="vgResults"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 音效生成 ============================== -->
+  <section id="tab-sfx" class="tabpane hidden">
+    <div class="grid">
+      <div class="panel">
+        <h2 data-i18n="sfxPanel1Title">1 · 音效描述</h2>
+        <p class="hint" data-i18n="sfxPanel1Hint">用自然语言描述环境声/拟音，越具体越好：场景、材质、距离、节奏。</p>
+        <div class="chips" id="sfxChips">
+          <button class="chip" data-i18n="sfxChip1">雷声隆隆，雨声淅沥。</button>
+          <button class="chip" data-i18n="sfxChip2">清晰脚步声在水泥地面回响，节奏稳定。</button>
+          <button class="chip" data-i18n="sfxChip3">清晨公园，鸟鸣稀疏，环境安静。</button>
+          <button class="chip" data-i18n="sfxChip4">跑车在高速公路上呼啸而过。</button>
+          <button class="chip" data-i18n="sfxChip5">雪地踩雪的清脆嘎吱声。</button>
+        </div>
+        <label class="field">
+          <span data-i18n="sfxPromptLabel">提示词</span>
+          <textarea id="sfxPrompt" rows="5"></textarea>
+        </label>
+        <div class="row">
+          <label class="field"><span data-i18n="sfxSecondsLabel">时长（秒）</span><input type="number" id="sfxSeconds" value="10" min="0.8" max="120" step="0.5" /><small data-i18n="sfxSecondsNote">换算为音频 token 上限</small></label>
+          <label class="field"><span data-i18n="seedLabel">随机种子（0=随机）</span><input type="number" id="sfxSeed" value="1234" /></label>
+          <label class="field"><span data-i18n="takesLabel">生成条数</span><input type="number" id="sfxTakes" value="1" min="1" max="6" /></label>
+        </div>
+        <details>
+          <summary class="status" style="cursor:pointer" data-i18n="sfxAdvanced">高级采样参数（SoundEffect 官方推荐 1.5 / 0.6 / 50 / 1.2）</summary>
+          <div class="row" style="margin-top:10px">
+            <label class="field"><span>temperature</span><input type="number" id="sfxTemp" value="1.5" step="0.05" /></label>
+            <label class="field"><span>top_p</span><input type="number" id="sfxTopP" value="0.6" step="0.05" /></label>
+            <label class="field"><span>top_k</span><input type="number" id="sfxTopK" value="50" /></label>
+            <label class="field"><span>repetition_penalty</span><input type="number" id="sfxRp" value="1.2" step="0.05" /></label>
+          </div>
+        </details>
+        <div class="toolbar" style="margin-top:6px">
+          <button class="primary" id="sfxRun" data-i18n="sfxRun">生成音效</button>
+          <button id="sfxLoad" data-i18n="sfxLoad">加载/切换 SoundEffect 模型</button>
+        </div>
+        <div class="progress hidden" id="sfxProgress"><i></i></div>
+        <p class="status" id="sfxStatus"></p>
+      </div>
+      <div class="panel">
+        <h2 data-i18n="sfxResultsTitle">生成结果</h2>
+        <div class="results" id="sfxResults"><p class="status" data-i18n="sfxNoResults">尚无结果。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 模型与输出 ============================== -->
+  <section id="tab-models" class="tabpane hidden">
+    <div class="panel">
+      <h2 data-i18n="modelsTitle">模型状态</h2>
+      <p class="hint" data-i18n="modelsHint">16GB 显存一次只驻留一个 8.4B 模型；切换模型会自动卸载当前模型（首次加载包含量化，约 1–3 分钟）。</p>
+      <table>
+        <thead><tr><th data-i18n="thModel">模型</th><th data-i18n="thStatus">状态</th><th data-i18n="thQuant">量化</th><th data-i18n="thDisk">磁盘</th><th data-i18n="thActions">操作</th></tr></thead>
+        <tbody id="modelRows"></tbody>
+      </table>
+      <div class="progress hidden" id="modelsProgress"><i></i></div>
+      <p class="status" id="modelStatus"></p>
+      <p class="status" id="memInfo"></p>
+      <p class="status" id="outputDir"></p>
+    </div>
+    <div class="panel">
+      <div class="output-header"><h2 data-i18n="outputsTitle">输出文件</h2><button id="clearOutputs" class="small danger" type="button" data-i18n="clearOutputs">一键清理</button></div>
+      <p class="status" id="outputStatus"></p>
+      <table>
+        <thead><tr><th data-i18n="thFile">文件</th><th data-i18n="thSize">大小</th><th data-i18n="thTime">时间</th><th data-i18n="thPreview">试听 / 操作</th></tr></thead>
+        <tbody id="outputRows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================== 说明 ============================== -->
+  <section id="tab-help" class="tabpane hidden">
+    <div class="panel">
+      <h2 data-i18n="helpTitle">使用说明</h2>
+      <ul class="hint" style="line-height:1.9">
+        <li data-i18n="help1"><b>首次使用</b>：在「模型与输出」页点「加载」即可——<b>四种生成模式默认都用已优化的 int8 + no-head 落盘产物</b>（表格里会显示具体用哪个产物），启动快、显存低，不需要先选量化方式。<b>fp8 / 无量化</b>需要完整精度权重在位，本机母本已于 2026-10-14 删除（腾系统盘）⇒ 这两档不再出现在界面里；哪天把权重重下回来，它们会自动重新出现。</li>
+        <li data-i18n="help2"><b>单人配音 / 音色克隆</b>：MOSS-TTS-v1.5（8B delay 模型）做零样本克隆——一段 3–10 秒参考音频 + 待转文本即可，参考音频决定音色，与文本语言无关；支持 31 种语言、中英混说、<code>[pause 1.5s]</code> 停顿与拼音（<code>ni3 hao3</code>）发音控制。内置音色列表在 <code>D:\MossTTSD\assets\voices\</code>（可直接替换成自己的参考音频）。采样参数请用官方推荐值（1.7 / 0.8 / 25 / 1.0）。</li>
+        <li data-i18n="help3"><b>音色设计</b>：MOSS-VoiceGenerator（1.7B delay）用自由文本描述音色与说话方式（性别 / 年龄 / 音质 / 情绪 / 语速 / 口音），<b>不需要参考音频</b>——描述与文本一起送入模型，直接产出该音色的配音。想把设计好的音色固定下来：生成后下载 wav，再拿到「单人配音」页当参考音频做克隆。采样参数用官方推荐值（1.5 / 0.6 / 50 / 1.1）。</li>
+        <li data-i18n="help4"><b>对话配音</b>：每位说话人需要一段参考音频 + 逐字稿；脚本用 <code>[S1]</code>/<code>[S2]</code> 标注轮次。参考音频质量直接决定音色相似度。</li>
+        <li data-i18n="help5"><b>长文本</b>：单次建议 ≤ 3 分钟，过长会显著增加显存占用（KV cache 随上下文增长）。</li>
+        <li data-i18n="help6"><b>音效生成</b>：时长通过 token 上限控制，实际输出可能略短（模型自然结束）。</li>
+        <li data-i18n="help7"><b>采样参数</b>：温度过低易丢句子结尾，过高易出现循环/杂音；先按官方推荐值，再微调。</li>
+        <li data-i18n="help8"><b>验收</b>：生成完成后务必完整试听，确认内容完整、无异常噪声；只看时长/文件大小不足以判定质量。</li>
+    </div>
+  </section>
+
+  <div class="panel">
+    <div class="toolbar">
+      <h2 style="margin:0" data-i18n="logsTitle">运行日志</h2>
+      <span class="spacer"></span>
+      <button class="small" id="clearLogs" data-i18n="clearLogs">清屏</button>
+    </div>
+    <div class="logs" id="logs"></div>
+  </div>
+
+  <footer data-i18n="footer">D:\MossTTSD · MOSS-TTS-v1.5 单人配音 / MOSS-VoiceGenerator 音色设计 / MOSS-TTSD-v1.0 / MOSS-SoundEffect（Apache-2.0）· 采样率 24 kHz</footer>
+</div>
+<script src="/static/i18n.js?v=__UI_BUILD__"></script>
+<script src="/static/app.js?v=__UI_BUILD__"></script>
+</body>
+</html>

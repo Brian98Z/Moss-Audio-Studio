@@ -1,0 +1,108 @@
+# electron-builder 配置（项目目录 = packaging/app，本文件位于 packaging/）
+# 用法见 packaging/README.md；所有构建一律 --publish never。
+appId: com.mossworkbench.client
+productName: MOSS语音工作台
+copyright: MOSS 语音工作台
+
+# app/package.json 是上游构建产物，不含 devDependencies ⇒ 这里显式钉住 Electron 版本（与 client/ 现产物一致，
+# 且本机 %LOCALAPPDATA%/electron/Cache 里已有 44.7.0 的 win32-x64 运行时，可离线构建 Windows 包）。
+electronVersion: 44.7.0
+# app/node_modules 是上游打好的生产依赖，禁止 electron-builder 重新安装/重编原生模块。
+npmRebuild: false
+asar: true
+# 图标源在 packaging/build/，输出统一到仓库根 release/（各平台再用 CLI 覆盖到 release/<os>）。
+directories:
+  buildResources: ../build
+  output: ../release
+# 只打包 app/ 内容；afterPack 钩子由 scripts/prepare-app.cjs 放进 app/scripts/，但不进 asar。
+files:
+  - "**/*"
+  - "!scripts/after-pack.cjs"
+extraResources:
+  - from: ../../server
+    to: workbench/server
+    filter:
+      - "**/*"
+      - "!**/__pycache__/**"
+      - "!**/*.pyc"
+  - from: ../../tools
+    to: workbench/tools
+    filter:
+      - "**/*"
+      - "!**/__pycache__/**"
+      - "!**/*.pyc"
+  - from: ../../docs
+    to: workbench/docs
+    filter:
+      - "**/*"
+      - "!**/__pycache__/**"
+      - "!**/*.pyc"
+  - from: ../../runtime/requirements.txt
+    to: workbench/runtime/requirements.txt
+  - from: ../../runtime/pylibs
+    to: workbench/runtime/pylibs
+    filter:
+      - "**/*"
+      - "!**/__pycache__/**"
+      - "!**/*.pyc"
+  - from: ../../assets
+    to: workbench/assets
+    filter:
+      - "**/*"
+      - "!**/__pycache__/**"
+      - "!**/*.pyc"
+  - from: ../../client/python
+    to: workbench/python
+  - from: ../..
+    to: workbench
+    filter:
+      - README.md
+      - README.zh-CN.md
+      - LICENSE
+      - start_server.bat
+
+extraMetadata:
+  author:
+    name: MOSS Voice Workbench
+
+win:
+  icon: ../build/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: MOSS-Voice-Workbench-${version}-win-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: MOSS语音工作台
+  artifactName: MOSS-Voice-Workbench-Setup-${version}-win-${arch}.${ext}
+
+mac:
+  icon: ../build/icon.icns
+  category: public.app-category.music
+  darkModeSupport: true
+  # 本仓库没有 Developer ID 证书：跳过证书签名，由 afterPack 钩子做 ad-hoc 签名（MuseMark 已验证过的做法）。
+  identity: null
+  hardenedRuntime: false
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  artifactName: MOSS-Voice-Workbench-${version}-mac-${arch}.${ext}
+
+dmg:
+  artifactName: MOSS-Voice-Workbench-${version}-mac-${arch}.${ext}
+
+# macOS 上补 ad-hoc 签名（必须在 dmg/zip 生成之前完成，afterPack 正是这个时机）。
+# 路径必须在 app/（工作区）内，因此由 scripts/prepare-app.cjs 复制进去。
+afterPack: scripts/after-pack.cjs

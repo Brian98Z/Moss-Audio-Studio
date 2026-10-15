@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- MOSS 语音工作台自绘图标（参考官方 MOSS 标识的「斜体 M + 环绕轨道」意象，本文件为原创矢量稿） -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f8ff7"/>
+      <stop offset="0.55" stop-color="#2560d8"/>
+      <stop offset="1" stop-color="#0f2c69"/>
+    </linearGradient>
+    <linearGradient id="glyph" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d9e9ff"/>
+    </linearGradient>
+    <clipPath id="card">
+      <rect x="0" y="0" width="512" height="512" rx="116"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#card)">
+    <rect x="0" y="0" width="512" height="512" fill="url(#bg)"/>
+
+    <!-- 轨道背面半圈（压在 M 之下） -->
+    <g transform="rotate(-10 256 352)">
+      <ellipse cx="256" cy="352" rx="196" ry="46" fill="none" stroke="#9ed6ff" stroke-width="13" opacity="0.5"/>
+    </g>
+
+    <!-- 主体：斜体几何 M -->
+    <path transform="translate(30 0) skewX(-7)"
+          d="M112 372 V150 H186 L256 268 L326 150 H400 V372 H338 V246 L270 360 H242 L174 246 V372 Z"
+          fill="url(#glyph)"/>
+
+    <!-- 轨道正面弧（压在 M 之上，形成环绕感） -->
+    <g transform="rotate(-10 256 352)">
+      <path d="M60 352 A196 46 0 0 0 452 352" fill="none" stroke="#c6e8ff" stroke-width="15" stroke-linecap="round"/>
+    </g>
+  </g>
+</svg>
