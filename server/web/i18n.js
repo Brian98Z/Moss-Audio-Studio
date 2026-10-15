@@ -500,6 +500,11 @@
     if (event.data && event.data.type === 'moss-language') setLanguage(event.data.language);
   });
 
+  // 启动时先按当前语言（URL 参数或默认值）应用一次静态文案。
+  // 否则当 URL 参数与外壳广播的语言一致时 setLanguage() 会提前返回，
+  // 静态 data-i18n 会永远停在中文兜底（运行时 t() 却是目标语言，页面中英混排）。
+  applyStatic();
+
   window.MossI18n = {
     t,
     get language() { return language; },
