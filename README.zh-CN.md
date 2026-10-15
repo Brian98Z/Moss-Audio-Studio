@@ -46,7 +46,7 @@
 
 ### 安装
 
-安装桌面应用后即可启动使用。安装包自带工作台本体与便携 Python；首次启动后，在界面中完成两步准备：
+**[下载 Windows x64 安装包（最新 Release）](https://github.com/Brian98Z/Moss-Audio-Studio/releases/latest)** 后即可启动使用。安装包自带工作台本体与便携 Python；构建未做代码签名，Windows SmartScreen 可能提示未知发布者，请对照发布页的 `SHA256SUMS-win-x64.txt` 校验文件（Release 页自动附带的 *Source code* 压缩包不是安装程序）。首次启动后，在界面中完成两步准备：
 
 1. 在「设置 → 环境准备」里完成两步：① 用随包便携 Python 创建 `runtime/venv` 并安装 `runtime/requirements.txt` 依赖（约 3.4 GB，安装源自动选择：清华 → 阿里云 → 官方 PyPI，失败自动切换，界面日志会写明实际使用的源；PyTorch 软件包通过 `--extra-index-url https://download.pytorch.org/whl/cu130` 获取，约占其中 2.7 GB）；② 在同一页面的下载区下载必需模型权重（约 61.8 GB），Demucs、Whisper、MossFormer2_SE 等可选资源按需下载（FFmpeg 也在此下载，约 83 MB）。
    该页签内嵌的就是独立的 `tools/downloader_ui.py` 界面（客户端用 `--no-browser` 拉起，**不会另开窗口**）；本机已装好依赖时会直接显示「✓ 本机环境已完成」，无需重装。

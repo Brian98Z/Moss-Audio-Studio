@@ -47,7 +47,9 @@ Detailed reference docs (Chinese): [`docs/API.md`](docs/API.md) · [`docs/CONFIG
 
 ### Install
 
-Install the desktop app and launch it — the installer includes the workbench and portable Python, so it is ready to use. On first launch, complete these two steps in the interface:
+**[Download the Windows x64 installer (latest release)](https://github.com/Brian98Z/Moss-Audio-Studio/releases/latest)** and launch it — the installer includes the workbench and portable Python, so it is ready to use. The build is not code-signed, so Windows SmartScreen may warn about an unknown publisher; check the file against `SHA256SUMS-win-x64.txt` on the release page. (The *Source code* archives auto-attached by GitHub are not installers.)
+
+On first launch, complete these two steps in the interface:
 
 1. Under **Environment preparation**, create `runtime/venv` with the bundled portable Python and install `runtime/requirements.txt` (about 3.4 GB). The package source is chosen automatically (Tsinghua → Alibaba Cloud → official PyPI, switching on failure; the setup log shows which one was used), and PyTorch packages come from `--extra-index-url https://download.pytorch.org/whl/cu130` (about 2.7 GB of the total).
 2. In **Download center**, download the required model weights (about 61.8 GB); optional assets such as Demucs, Whisper, and MossFormer2_SE can be downloaded as needed. FFmpeg is also downloaded there (about 83 MB).
