@@ -6,7 +6,7 @@
  *   1. 外壳（Electron）广播的 {type:'moss-theme', mode, primary} —— 客户端内的权威来源；
  *   2. URL 查询参数 ?theme=dark&primary=1677ff —— 独立打开（浏览器/接口调用）时用；
  *   3. localStorage 缓存 —— 同一页面重载后不闪回默认色；
- *   4. 默认：mode=light，primary=#1677ff。
+ *   4. 默认：mode=dark，primary 留空（用样式表里的 --accent：蓝紫 #6a6ef6）。
  *
  * 落地方式：在 <html> 上写 data-theme="light|dark"（CSS 变量按此切换），
  * 并把主色及其派生色写到 :root 的 CSS 变量上（见 index.html 的变量定义）。
@@ -14,7 +14,7 @@
 (() => {
   const STORAGE_KEY = 'moss-theme';
   const MODES = ['light', 'dark', 'system'];
-  const DEFAULT_MODE = 'light';
+  const DEFAULT_MODE = 'dark';
   // 未设置主色时留空：外壳用 antd 自己的默认主色、页面用样式表里的默认 --accent
   // （即“什么都不改”= 与今天完全一致），用户一旦选了颜色再统一覆盖两边。
   const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;

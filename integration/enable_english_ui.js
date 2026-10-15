@@ -191,7 +191,7 @@ const localeRuntime = `
   const THEME_MODES = ['light', 'dark', 'system'];
   const THEME_HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
   const themeMedia = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-  let themeMode = 'light';
+  let themeMode = 'dark';
   let themePrimary = '';
   const normalizeMode = (value) => THEME_MODES.indexOf(value) >= 0 ? value : null;
   const normalizePrimary = (value) => {
@@ -223,7 +223,7 @@ const localeRuntime = `
     // 主色的“淡底”系列：antd 默认（亮色）算法给的是接近白色的淡色底（colorPrimaryBg），
     // 在暗色下配浅色文字会看不清（Select 选中项、侧栏菜单选中态）。这里按当前主色算出暗色淡底
     // 覆盖该系列 token；主色一变就重算，随用户选色走。
-    const themeBase = themePrimary || '#f77612';
+    const themeBase = themePrimary || '#6a6ef6';
     const toRgb = (hex) => {
       const h = String(hex).replace('#', '');
       const f = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
@@ -245,7 +245,7 @@ const localeRuntime = `
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
     document.documentElement.dataset.themeMode = themeMode;
     // 给注入的 CSS 用（设置页色块/链接跟随主色）
-    document.documentElement.style.setProperty('--moss-primary', themePrimary || '#f77612');
+    document.documentElement.style.setProperty('--moss-primary', themePrimary || '#6a6ef6');
     if (typeof window.__mossRerenderTheme === 'function') window.__mossRerenderTheme();
     broadcastTheme();
     return true;
@@ -297,7 +297,7 @@ ${cssBegin}
   --moss-seg-bg: #f2f4f8;
   --moss-active-bg: #ffffff;
   --moss-active-ring: #1f2534;
-  --moss-primary: #f77612;
+  --moss-primary: #6a6ef6;
   --moss-primary-rgb: 247, 118, 18;
   --moss-page-bg: #ffffff;
   --moss-menu-bg: #f5f5f0;
@@ -676,12 +676,17 @@ function MossServiceLink() {
   }
 
   // ---- 主题 1/3：写死的 antd token 改成运行时可变（ConfigProvider 仍在原处）----
-  const tokenMarker = 'colorPrimary: (window.__mossTheme && window.__mossTheme.primary) || "#f77612"';
+  const tokenMarker = 'colorPrimary: (window.__mossTheme && window.__mossTheme.primary) || "#6a6ef6"';
+  // 早期版本注入的是橙色兜底：就地升级成蓝紫，避免「已打过补丁」的包既匹配不到新标记、也匹配不到原始锚点
+  const legacyTokenMarker = 'colorPrimary: (window.__mossTheme && window.__mossTheme.primary) || "#f77612"';
+  if (source.includes(legacyTokenMarker)) {
+    source = source.replace(legacyTokenMarker, tokenMarker);
+  }
   if (!source.includes(tokenMarker)) {
     const tokenRe = /token: \{\s*colorPrimary: "#f77612"\s*\}/;
     if ((source.match(tokenRe) || []).length !== 1) throw new Error('ConfigProvider token anchor mismatch');
     source = source.replace(tokenRe,
-      'token: Object.assign({ colorPrimary: (window.__mossTheme && window.__mossTheme.primary) || "#f77612" }, ' +
+      'token: Object.assign({ colorPrimary: (window.__mossTheme && window.__mossTheme.primary) || "#6a6ef6" }, ' +
       '(window.__mossTheme && window.__mossTheme.dark) ? window.__mossThemeDarkTokens || {} : {})');
   }
 
@@ -723,8 +728,8 @@ function MossServiceLink() {
     ['color: "#937965"', 'color: "var(--moss-stop-fg, #937965)"', 1],
     ['border: "2px solid #937965"', 'border: "2px solid var(--moss-stop-fg, #937965)"', 1],
     ['color: "#1677ff"', 'color: "var(--moss-link, #1677ff)"', 9],
-    ['? "#f77612" : ""', '? "var(--moss-primary, #f77612)" : ""', 1],
-    ['color: "#f77612"', 'color: "var(--moss-primary, #f77612)"', 3]
+    ['? "#f77612" : ""', '? "var(--moss-primary, #6a6ef6)" : ""', 1],
+    ['color: "#f77612"', 'color: "var(--moss-primary, #6a6ef6)"', 3]
   ];
   for (const [from, to, expected] of shellColorPatches) {
     if (source.includes(to)) continue;                                    // 已打过

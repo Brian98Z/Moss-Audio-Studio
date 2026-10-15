@@ -45,26 +45,51 @@ const ENHANCER = `
   var envStarted = false;
   var envPoll = null;
   var envFrame = null;
+  var envLoaded = '';
 
-  function labels() {
+  function isZh() {
     var head = (document.body && document.body.innerText || '').slice(0, 3000);
-    var zh = /设置|首页|关于|外观/.test(head);
-    // 环境准备与模型下载是同一个页面（17990 = downloads.html + 环境准备段），只留一个页签。
-    return zh ? ['通用设置', '环境准备'] : ['General', 'Environment setup'];
+    return /设置|首页|关于|外观/.test(head);
   }
 
-  // 外壳当前明暗：读宿主自身的底色亮度，用于给嵌套 iframe 兜底主题（外层广播到不了它）。
+  function labels() {
+    // 环境准备与模型下载是同一个页面（17990 = downloads.html + 环境准备段），只留一个页签。
+    return isZh() ? ['通用设置', '环境准备'] : ['General', 'Environment setup'];
+  }
+
+  // 内嵌页的主题与语言跟随外壳：theme.js / i18n.js 的取值优先级是
+  // 「外壳消息 > URL 参数 > 本地缓存 > 默认」，这里两路都给。
+  function envUrl() {
+    return ENV_URL + '?language=' + (isZh() ? 'chinese' : 'english') + '&theme=' + shellMode();
+  }
+
+  function lumaOf(rgb) {
+    var m = /rgba?\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)(?:\\s*,\\s*([\\d.]+))?/.exec(rgb || '');
+    if (!m) return null;
+    if (m[4] !== undefined && parseFloat(m[4]) < 0.5) return null;   // 近乎透明，忽略
+    return 0.2126 * +m[1] + 0.7152 * +m[2] + 0.0722 * +m[3];
+  }
+
+  // 外壳当前明暗。Electron 壳里 html/body 往往是透明的，真正的底色在某个容器上，
+  // 所以先扫容器底色、再退到文字色（浅色主题=深色文字），最后才用系统偏好兜底。
   function shellMode() {
-    var nodes = [document.body, document.documentElement];
-    for (var i = 0; i < nodes.length; i++) {
-      if (!nodes[i]) continue;
-      var bg = getComputedStyle(nodes[i]).backgroundColor || '';
-      if (!bg || bg === 'transparent' || /rgba\\(\\s*0\\s*,\\s*0\\s*,\\s*0\\s*,\\s*0\\s*\\)/.test(bg)) continue;
-      var m = /rgba?\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)/.exec(bg);
-      if (!m) continue;
-      var luma = 0.2126 * +m[1] + 0.7152 * +m[2] + 0.0722 * +m[3];
-      return luma < 128 ? 'dark' : 'light';
+    var scope = [];
+    if (document.body) scope.push(document.body);
+    if (document.documentElement) scope.push(document.documentElement);
+    var extra = document.querySelectorAll('div,nav,aside,header,main,section');
+    for (var i = 0; i < extra.length && i < 500; i++) scope.push(extra[i]);
+    var j, lv;
+    for (j = 0; j < scope.length; j++) {
+      lv = lumaOf(getComputedStyle(scope[j]).backgroundColor);
+      if (lv !== null) return lv < 128 ? 'dark' : 'light';
     }
+    for (j = 0; j < scope.length; j++) {
+      lv = lumaOf(getComputedStyle(scope[j]).color);
+      if (lv !== null) return lv < 128 ? 'light' : 'dark';   // 深色文字 → 浅色主题
+    }
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+    } catch (e) {}
     return 'dark';
   }
 
@@ -78,7 +103,13 @@ const ENHANCER = `
       // 17990 页面加载完成。跨源 fetch 会被 CORS 挡掉，不能拿它当就绪判据，只能等页面主动上报。
       clearInterval(envPoll);
       envPoll = null;
-      if (envFrame) envFrame.setAttribute('data-ready', '1');
+      if (envFrame) {
+        envFrame.setAttribute('data-ready', '1');
+        // theme.js 以「外壳消息」为权威来源，这里把当前明暗推过去，切主题后重载即同色。
+        try {
+          envFrame.contentWindow.postMessage({ type: 'moss-theme', mode: shellMode(), primary: '' }, '*');
+        } catch (e) {}
+      }
     }
   });
 
@@ -126,14 +157,17 @@ const ENHANCER = `
           envStarted = true;
           try { if (window.api && window.api.openEnvSetup) window.api.openEnvSetup(); } catch (e) {}
         }
-        if (envFrame.getAttribute('data-ready') === '1') {
+        var url = envUrl();
+        if (envFrame.getAttribute('data-ready') === '1' && envLoaded === url) {
           clearInterval(envPoll);
           envPoll = null;
         } else if (!envPoll) {
-          envFrame.setAttribute('src', ENV_URL);
+          // 首次打开、服务还没起、或外壳换了主题/语言 → 用新参数重新加载
+          envLoaded = url;
+          envFrame.setAttribute('src', url);
           envPoll = setInterval(function () {
             envFrame.removeAttribute('src');
-            setTimeout(function () { envFrame.setAttribute('src', ENV_URL); }, 20);
+            setTimeout(function () { envFrame.setAttribute('src', url); }, 20);
           }, 3000);
         }
         try { fit(); } catch (e) {}
