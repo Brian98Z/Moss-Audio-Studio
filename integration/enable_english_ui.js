@@ -675,6 +675,16 @@ function MossServiceLink() {
     throw new Error('renderer entry anchor mismatch');
   }
 
+  // 主题运行时只注入一次（有标记就跳过），所以脚本源码里改过的默认值到不了已打过补丁的 asar。
+  // 这里对旧版本注入的“浅色默认/浅色兜底”就地升级为暗色默认。
+  for (const [from, to] of [
+    ["let themeMode = 'light';", "let themeMode = 'dark';"],
+    ["applyTheme({ mode: 'light' }, { force: true });", "applyTheme({ mode: 'dark' }, { force: true });"],
+    ['{ mode: "light", primary: "" }', '{ mode: "dark", primary: "" }'],
+  ]) {
+    if (source.includes(from)) source = source.replace(from, to);
+  }
+
   // ---- 主题 1/3：写死的 antd token 改成运行时可变（ConfigProvider 仍在原处）----
   const tokenMarker = 'colorPrimary: (window.__mossTheme && window.__mossTheme.primary) || "#6a6ef6"';
   // 早期版本注入的是橙色兜底：就地升级成蓝紫，避免「已打过补丁」的包既匹配不到新标记、也匹配不到原始锚点
